@@ -43,7 +43,7 @@ public class HazardReport {
     @Transient
     @JsonProperty("linkGambar")
     public String getLinkGambar() {
-        return "http://localhost:8080/api/gambar/" + id;
+        return "http://192.168.1.14:8080/api/gambar/" + id;
     }
     @Transient
     public String imagePath(){

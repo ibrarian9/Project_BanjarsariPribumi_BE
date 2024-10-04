@@ -9,7 +9,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -28,8 +27,7 @@ public class AuthControllers {
     @PostMapping(value = "/register", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> registerUser(@RequestBody RegisterDTO registerDTO) {
         try {
-            usersService.registerUser(registerDTO);
-            return ResponseEntity.ok("User registered successfully");
+            return usersService.registerUser(registerDTO);
         } catch (Exception e) {
             return handleException(e);
         }
@@ -42,12 +40,8 @@ public class AuthControllers {
                     loginDTO.getEmail(), loginDTO.getPassword()
             ));
             return usersService.login(authentication);
-        } catch (BadCredentialsException e) {
-            ErrorResponse errRes = new ErrorResponse(HttpStatus.BAD_REQUEST.value(), e.getLocalizedMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errRes);
         } catch (Exception e) {
-            ErrorResponse errRes = new ErrorResponse(HttpStatus.NOT_FOUND.value(), e.getLocalizedMessage());
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errRes);
+           return handleException(e);
         }
     }
 

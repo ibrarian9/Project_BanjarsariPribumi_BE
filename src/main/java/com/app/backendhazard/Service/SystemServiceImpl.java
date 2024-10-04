@@ -7,6 +7,9 @@ import com.app.backendhazard.Repository.*;
 import com.app.backendhazard.Response.ErrorResponse;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.AllArgsConstructor;
+import org.apache.tomcat.util.http.fileupload.FileUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.http.HttpStatus;
@@ -16,6 +19,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StreamUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,9 +32,11 @@ import java.util.function.Supplier;
 @AllArgsConstructor
 public class SystemServiceImpl implements SystemService {
 
+    private static final Logger log = LoggerFactory.getLogger(SystemServiceImpl.class);
     private final UsersRepository usersRepo;
     private final ShiftRepository shiftRepo;
     private final StatusRepository statusRepo;
+    private final StatusKaryawanRepository statusKaryawanRepo;
     private final SafetyTalkRepo safetyTalkRepo;
     private final CompanyRepository companyRepo;
     private final CompanyRepository perusahaanRepo;
@@ -120,6 +127,7 @@ public class SystemServiceImpl implements SystemService {
 
     @Override
     public ResponseEntity<?> addHazardReport(HazardReportDTO hazardReport, MultipartFile gambar) {
+
         HazardReport newReport = new HazardReport();
         newReport.setTitle(hazardReport.getTitle());
         newReport.setNamaPelapor(hazardReport.getNamaPelapor());
@@ -127,12 +135,16 @@ public class SystemServiceImpl implements SystemService {
         newReport.setDeskripsi(hazardReport.getDeskripsi());
         newReport.setTindakan(hazardReport.getTindakan());
 
+        Status status = statusRepo.findById(hazardReport.getStatusId())
+                .orElseThrow(() -> new EntityNotFoundException("Status Pelapor Not Found" + hazardReport.getStatusId()));
+
         Department departmentPelapor = departmentRepo.findById(hazardReport.getDepartmentPelaporId())
                 .orElseThrow(() -> new EntityNotFoundException("Department Pelapor Not Found " + hazardReport.getDepartmentPelaporId()));
 
         Department departmentPerbaikan = departmentRepo.findById(hazardReport.getDepartmentPerbaikanId())
                 .orElseThrow(() -> new EntityNotFoundException("Department Perbaikan Not Found " + hazardReport.getDepartmentPerbaikanId()));
 
+        newReport.setStatus(status);
         newReport.setDepartmentPelapor(departmentPelapor);
         newReport.setDepartmentPerbaikan(departmentPerbaikan);
 
@@ -153,15 +165,35 @@ public class SystemServiceImpl implements SystemService {
 
         Map<String, Object> response = new HashMap<>();
         response.put("httpStatus", HttpStatus.CREATED.value());
-        response.put("data", hazardReport1);
+        response.put("message", "Hazard Report Berhasil Dibuat!");
         return ResponseEntity.ok(response);
     }
 
     @Override
     public ResponseEntity<?> deleteHazardReport(Long id) {
         Optional<HazardReport> reportOptional = hazardReportRepo.findById(id);
+
         if (reportOptional.isPresent()) {
-            hazardReportRepo.delete(reportOptional.get());
+            HazardReport hazardReport = reportOptional.get();
+
+            String fileName = hazardReport.getGambar();
+            String filePath = path + "uploads/" + hazardReport.getId();
+            File fileToDelete = new File(filePath, fileName);
+
+            if (fileToDelete.exists() && !fileToDelete.delete()) {
+                System.out.println("Failed to delete the file: " + fileToDelete.getPath());
+            }
+
+            File directory = new File(filePath);
+            if (directory.exists() && directory.isDirectory()) {
+                try {
+                    FileUtils.deleteDirectory(directory);
+                } catch (IOException e) {
+                    System.out.println("Error deleting directory: " + e.getMessage());
+                }
+            }
+
+            hazardReportRepo.delete(hazardReport);
 
             Map<String, Object> response = new HashMap<>();
             response.put("httpStatus", HttpStatus.OK.value());
@@ -169,7 +201,7 @@ public class SystemServiceImpl implements SystemService {
 
             return ResponseEntity.ok(response);
         } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Hazard Report Not Found");
+            return handleExceptionByMessage("Hazard Report Not Found");
         }
     }
 
@@ -282,10 +314,27 @@ public class SystemServiceImpl implements SystemService {
         return saveEntity(newSafetyTalk, safetyTalkRepo);
     }
 
+    @Override
+    public ResponseEntity<Map<String, Object>> getAllStatusKaryawan() {
+        return getAllData(statusKaryawanRepo.findAll());
+    }
+
+    @Override
+    public ResponseEntity<Map<String, Object>> getDetailStatusKaryawan(Long id) {
+        return getDetailData(id, statusKaryawanRepo);
+    }
+
+    @Override
+    public ResponseEntity<Map<String, Object>> getAllStatus() {
+        return getAllData(statusRepo.findAll());
+    }
+
     private <T> ResponseEntity<?> fetchImage(Supplier<T> entitySupplier, Function<T, String> imagePathFunction, String notFoundMessage) {
         try {
             T entity = entitySupplier.get();
             String imagePath = imagePathFunction.apply(entity);
+
+            log.info(imagePath);
 
             if (imagePath == null) {
                 return handleExceptionByMessage(notFoundMessage);

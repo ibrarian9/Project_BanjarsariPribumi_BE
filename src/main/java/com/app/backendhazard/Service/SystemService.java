@@ -28,4 +28,8 @@ public interface SystemService {
     ResponseEntity<Map<String, Object>> getAllSafetyTalk();
     ResponseEntity<Map<String, Object>> getDetailSafetyTalk(Long id);
     ResponseEntity<Map<String, Object>> addSafetyTalk(SafetyTalkDTO safetyTalk);
+    ResponseEntity<Map<String, Object>> getAllStatusKaryawan();
+    ResponseEntity<Map<String, Object>> getDetailStatusKaryawan(Long id);
+    ResponseEntity<Map<String, Object>> getAllStatus();
+//    ResponseEntity<Map<String, Object>> addInspectionQuestion();
 }

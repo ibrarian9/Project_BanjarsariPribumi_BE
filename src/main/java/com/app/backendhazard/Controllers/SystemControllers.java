@@ -198,6 +198,33 @@ public class SystemControllers {
         }
     }
 
+    @GetMapping(path = "/statusStaff", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getStatusStaff(){
+        try {
+            return systemService.getAllStatusKaryawan();
+        } catch (Exception e){
+            return handleException(e);
+        }
+    }
+
+    @GetMapping(path = "/statusStaff/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getDetailStatusStaff(@PathVariable Long id){
+        try {
+            return systemService.getDetailStatusKaryawan(id);
+        } catch (Exception e){
+            return handleException(e);
+        }
+    }
+
+    @GetMapping(path = "/status", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getAllStatus(){
+        try {
+            return systemService.getAllStatus();
+        } catch (Exception e){
+            return handleException(e);
+        }
+    }
+
     public ResponseEntity<?> handleLimitImage() {
         ErrorResponse errorResponse = new ErrorResponse(HttpStatus.EXPECTATION_FAILED.value(), "File Too Large!");
         return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED).body(errorResponse);

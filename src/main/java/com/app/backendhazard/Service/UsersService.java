@@ -5,7 +5,9 @@ import com.app.backendhazard.DTO.RegisterDTO;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 
+import java.util.Map;
+
 public interface UsersService {
     ResponseEntity<?> login(Authentication authentication);
-    void registerUser(RegisterDTO registerDTO);
+    ResponseEntity<Map<String, Object>> registerUser(RegisterDTO registerDTO);
 }
