@@ -12,6 +12,4 @@ public class Status {
     private Integer id;
     @Column(name = "nama_status")
     private String namaStatus;
-    @Column(name = "alasan")
-    private String alasan;
 }

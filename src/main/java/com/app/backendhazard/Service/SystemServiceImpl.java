@@ -17,10 +17,13 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StreamUtils;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +40,7 @@ public class SystemServiceImpl implements SystemService {
     private final ShiftRepository shiftRepo;
     private final StatusRepository statusRepo;
     private final StatusKaryawanRepository statusKaryawanRepo;
+    private final HazardStatusHistoryRepository hazardStatusHistoryRepo;
     private final SafetyTalkRepo safetyTalkRepo;
     private final CompanyRepository companyRepo;
     private final CompanyRepository perusahaanRepo;
@@ -128,6 +132,9 @@ public class SystemServiceImpl implements SystemService {
     @Override
     public ResponseEntity<?> addHazardReport(HazardReportDTO hazardReport, MultipartFile gambar) {
 
+        log.info("data : {}", hazardReport);
+
+        // Create & set new Report
         HazardReport newReport = new HazardReport();
         newReport.setTitle(hazardReport.getTitle());
         newReport.setNamaPelapor(hazardReport.getNamaPelapor());
@@ -135,26 +142,23 @@ public class SystemServiceImpl implements SystemService {
         newReport.setDeskripsi(hazardReport.getDeskripsi());
         newReport.setTindakan(hazardReport.getTindakan());
 
-        Status status = statusRepo.findById(hazardReport.getStatusId())
-                .orElseThrow(() -> new EntityNotFoundException("Status Pelapor Not Found" + hazardReport.getStatusId()));
-
         Department departmentPelapor = departmentRepo.findById(hazardReport.getDepartmentPelaporId())
                 .orElseThrow(() -> new EntityNotFoundException("Department Pelapor Not Found " + hazardReport.getDepartmentPelaporId()));
 
         Department departmentPerbaikan = departmentRepo.findById(hazardReport.getDepartmentPerbaikanId())
                 .orElseThrow(() -> new EntityNotFoundException("Department Perbaikan Not Found " + hazardReport.getDepartmentPerbaikanId()));
 
-        newReport.setStatus(status);
         newReport.setDepartmentPelapor(departmentPelapor);
         newReport.setDepartmentPerbaikan(departmentPerbaikan);
+        newReport.setTanggalKejadian(LocalDateTime.now().atZone(ZoneId.of("Asia/Jakarta")).toLocalDateTime());
 
         HazardReport savedReport = hazardReportRepo.save(newReport);
 
+        // Handle Image Upload
         String nameGambar = "gambar_" + System.currentTimeMillis() + ".jpg";
         savedReport.setGambar(nameGambar);
 
         HazardReport hazardReport1 = hazardReportRepo.save(savedReport);
-
         String uploadDir = path + "upload/" + hazardReport1.getId();
 
         try {
@@ -162,6 +166,16 @@ public class SystemServiceImpl implements SystemService {
         } catch (Exception e){
             return handleException(e);
         }
+
+        // Add Status To History
+        HazardStatusHistory history = new HazardStatusHistory();
+        Status status = statusRepo.findById(1L)
+                .orElseThrow(() -> new EntityNotFoundException("Status Pelapor Not Found" + 1L));
+        history.setReport(hazardReport1);
+        history.setStatus(status);
+        history.setUpdateBy("Admin");
+        history.setUpdateDate(LocalDateTime.now().atZone(ZoneId.of("Asia/Jakarta")).toLocalDateTime());
+        hazardStatusHistoryRepo.save(history);
 
         Map<String, Object> response = new HashMap<>();
         response.put("httpStatus", HttpStatus.CREATED.value());
@@ -327,6 +341,53 @@ public class SystemServiceImpl implements SystemService {
     @Override
     public ResponseEntity<Map<String, Object>> getAllStatus() {
         return getAllData(statusRepo.findAll());
+    }
+
+    @Override
+    public ResponseEntity<Map<String, Object>> getAllHistoryStatus() {
+        return getAllData(hazardStatusHistoryRepo.findAll());
+    }
+
+    @Override
+    public ResponseEntity<Map<String, Object>> getDetailHistoryStatus(Long id) {
+        return getDetailData(id, hazardStatusHistoryRepo);
+    }
+
+    @Override
+    public ResponseEntity<?> editHistoryStatus(Long id, HazardStatusDTO hazardStatusDTO) {
+
+        HazardReport hazardReport = hazardReportRepo.findById(hazardStatusDTO.getReportId())
+                .orElseThrow(() -> new EntityNotFoundException("Report Not Found " + hazardStatusDTO.getReportId()));
+
+        Status status = statusRepo.findById(hazardStatusDTO.getStatusId())
+                .orElseThrow(() -> new EntityNotFoundException("Status Not Found " + hazardStatusDTO.getStatusId()));
+
+        HazardStatusHistory history = hazardStatusHistoryRepo.findByReportId(hazardStatusDTO.getReportId())
+                .orElse(new HazardStatusHistory());
+
+        history.setReport(hazardReport);
+        history.setStatus(status);
+
+        Integer reject = 3;
+        if (status.getId() != null && status.getId().equals(reject)) {
+            if (!StringUtils.hasText(hazardStatusDTO.getAlasan())) {
+                ErrorResponse errorRes = new ErrorResponse(HttpStatus.BAD_REQUEST.value(), "Alasan is required when status is Rejected");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorRes);
+            }
+            history.setAlasan(hazardStatusDTO.getAlasan());
+        } else {
+            history.setAlasan(hazardStatusDTO.getAlasan());
+        }
+
+        history.setUpdateBy(hazardStatusDTO.getUpdateBy());
+        history.setUpdateDate(LocalDateTime.now().atZone(ZoneId.of("Asia/Jakarta")).toLocalDateTime());
+
+        hazardStatusHistoryRepo.save(history);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("httpStatus", HttpStatus.OK.value());
+        response.put("message", "Status Hazard Report updated successfully!");
+        return ResponseEntity.ok(response);
     }
 
     private <T> ResponseEntity<?> fetchImage(Supplier<T> entitySupplier, Function<T, String> imagePathFunction, String notFoundMessage) {

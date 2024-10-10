@@ -31,5 +31,8 @@ public interface SystemService {
     ResponseEntity<Map<String, Object>> getAllStatusKaryawan();
     ResponseEntity<Map<String, Object>> getDetailStatusKaryawan(Long id);
     ResponseEntity<Map<String, Object>> getAllStatus();
+    ResponseEntity<Map<String, Object>> getAllHistoryStatus();
+    ResponseEntity<Map<String, Object>> getDetailHistoryStatus(Long id);
+    ResponseEntity<?> editHistoryStatus(Long id, HazardStatusDTO hazardStatusDTO);
 //    ResponseEntity<Map<String, Object>> addInspectionQuestion();
 }

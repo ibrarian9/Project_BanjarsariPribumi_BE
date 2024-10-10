@@ -51,6 +51,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests((authorizeRequests) -> authorizeRequests
                         .requestMatchers(HttpMethod.POST, "/api/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/**").permitAll()
+                        .requestMatchers(HttpMethod.PUT, "/api/**").permitAll()
+                        .requestMatchers(HttpMethod.DELETE, "/api/**").permitAll()
                         .anyRequest().authenticated()
                 );
         http.exceptionHandling(ex -> ex.authenticationEntryPoint(authEntryPoint))

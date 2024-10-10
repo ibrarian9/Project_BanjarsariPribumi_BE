@@ -225,6 +225,33 @@ public class SystemControllers {
         }
     }
 
+    @GetMapping(path = "/historyStatus", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getAllHazardStatusHistory(){
+        try {
+            return systemService.getAllHistoryStatus();
+        } catch (Exception e){
+            return handleException(e);
+        }
+    }
+
+    @GetMapping(path = "/historyStatus/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getDetailHazardStatusHistory(@PathVariable Long id){
+        try {
+            return systemService.getDetailHistoryStatus(id);
+        } catch (Exception e){
+            return handleException(e);
+        }
+    }
+
+    @PutMapping(path = "/historyStatus/{id}", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> editHazardStatusHistory(@PathVariable Long id, @RequestBody HazardStatusDTO hazardStatusDTO){
+        try {
+            return systemService.editHistoryStatus(id, hazardStatusDTO);
+        } catch (Exception e){
+            return handleException(e);
+        }
+    }
+
     public ResponseEntity<?> handleLimitImage() {
         ErrorResponse errorResponse = new ErrorResponse(HttpStatus.EXPECTATION_FAILED.value(), "File Too Large!");
         return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED).body(errorResponse);

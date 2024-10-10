@@ -5,13 +5,15 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "hazard_report")
 @Data
 public class HazardReport {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    private Long id;
     @Column(name = "title")
     private String title;
     @Column(name = "nama_pelapor")
@@ -20,9 +22,6 @@ public class HazardReport {
     private String lokasi;
     @Column(columnDefinition = "TEXT")
     private String deskripsi;
-    @ManyToOne
-    @JoinColumn(name = "status_id", referencedColumnName = "id", nullable = false)
-    private Status status;
     @ManyToOne
     @JoinColumn(name = "department_pelapor_id", referencedColumnName = "id", nullable = false)
     private Department departmentPelapor;
@@ -34,8 +33,8 @@ public class HazardReport {
     private Penyelesaian penyelesaian;
     @Column(name = "tindakan")
     private String tindakan;
-    @Column(name = "alasan")
-    private String alasan;
+    @Column(name = "tanggal_kejadian")
+    private LocalDateTime tanggalKejadian;
     @Lob
     @JsonIgnore
     @Column(name = "gambar", columnDefinition = "TEXT")
