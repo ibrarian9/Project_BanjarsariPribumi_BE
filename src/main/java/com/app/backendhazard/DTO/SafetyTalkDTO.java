@@ -6,5 +6,5 @@ import lombok.Data;
 public class SafetyTalkDTO {
     private Long departmentId;
     private Long userId;
-    private Long attainmentNumber;
+    private Long attainmentNum;
 }

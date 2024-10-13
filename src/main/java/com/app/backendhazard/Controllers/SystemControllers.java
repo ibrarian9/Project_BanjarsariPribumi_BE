@@ -190,7 +190,7 @@ public class SystemControllers {
     }
 
     @PostMapping(path = "/safetyTalk/add", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> addSafetyTalk(SafetyTalkDTO safetyTalk){
+    public ResponseEntity<?> addSafetyTalk(@RequestBody SafetyTalkDTO safetyTalk){
         try {
             return systemService.addSafetyTalk(safetyTalk);
         } catch (Exception e){
@@ -247,6 +247,24 @@ public class SystemControllers {
     public ResponseEntity<?> editHazardStatusHistory(@PathVariable Long id, @RequestBody HazardStatusDTO hazardStatusDTO){
         try {
             return systemService.editHistoryStatus(id, hazardStatusDTO);
+        } catch (Exception e){
+            return handleException(e);
+        }
+    }
+
+    @DeleteMapping(path = "/historyStatus/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> deleteHazardStatusHistory(@PathVariable Long id){
+        try {
+            return systemService.deleteHistoryStatus(id);
+        } catch (Exception e){
+            return handleException(e);
+        }
+    }
+
+    @GetMapping(value = "/users", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getAllUsers(){
+        try {
+            return systemService.getAllUser();
         } catch (Exception e){
             return handleException(e);
         }

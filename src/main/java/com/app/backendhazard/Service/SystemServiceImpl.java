@@ -75,6 +75,13 @@ public class SystemServiceImpl implements SystemService {
         return ResponseEntity.ok(response);
     }
 
+    private ResponseEntity<Map<String, Object>> saveEntityWithMessage(String message) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("httpStatus", HttpStatus.CREATED.value());
+        response.put("message", message);
+        return ResponseEntity.ok(response);
+    }
+
     @Override
     public ResponseEntity<Map<String, Object>> getAllCompany() {
         return getAllData(perusahaanRepo.findAll());
@@ -131,8 +138,6 @@ public class SystemServiceImpl implements SystemService {
 
     @Override
     public ResponseEntity<?> addHazardReport(HazardReportDTO hazardReport, MultipartFile gambar) {
-
-        log.info("data : {}", hazardReport);
 
         // Create & set new Report
         HazardReport newReport = new HazardReport();
@@ -262,29 +267,48 @@ public class SystemServiceImpl implements SystemService {
         HazardReport hazardReport = hazardReportRepo.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Hazard Report Not Found"));
 
-        Penyelesaian newPenyelesaian = new Penyelesaian();
-        newPenyelesaian.setNamaPenyelesaian(penyelesaian.getNamaPenyelesaian());
-        newPenyelesaian.setDepartment(department);
+        Penyelesaian penyelesaianEntity = hazardReport.getPenyelesaian();
 
-        Penyelesaian savePenyelesaian = penyelesaianRepo.save(newPenyelesaian);
-
-        String namaGambar = "resolution_" + System.currentTimeMillis() + ".jpg";
-        savePenyelesaian.setGambar(namaGambar);
-
-        String uploadDir = path + "upload/resolution/" + savePenyelesaian.getId();
-
-        try {
-            FileUploadUtil.saveFile(uploadDir, namaGambar, gambar);
-        } catch (Exception e){
-            return handleException(e);
+        if (penyelesaianEntity == null) {
+            penyelesaianEntity = new Penyelesaian();
         }
 
-        hazardReport.setPenyelesaian(newPenyelesaian);
-        hazardReportRepo.save(hazardReport);
+        penyelesaianEntity.setDepartment(department);
+        penyelesaianEntity.setNamaPenyelesaian(penyelesaian.getNamaPenyelesaian());
+
+        if (gambar != null && !gambar.isEmpty()) {
+            String oldImage = penyelesaianEntity.getGambar();
+
+            String namaGambar = "resolution_" + System.currentTimeMillis() + ".jpg";
+            penyelesaianEntity.setGambar(namaGambar);
+
+            String uploadDir = path + "upload/resolution/" + penyelesaianEntity.getId();
+            try {
+                if (oldImage != null && !oldImage.isEmpty()) {
+                    File oldFile = new File(uploadDir + "/" + oldImage);
+                    if (oldFile.exists()) {
+                        if (!oldFile.delete()) {
+                            throw new IOException("Failed to delete old file: " + oldImage);
+                        }
+                    }
+                }
+
+                FileUploadUtil.saveFile(uploadDir, namaGambar, gambar);
+            } catch (Exception e) {
+                return handleException(e);
+            }
+        }
+
+        Penyelesaian savePenyelesaian = penyelesaianRepo.save(penyelesaianEntity);
+
+        if (hazardReport.getPenyelesaian() == null) {
+            hazardReport.setPenyelesaian(savePenyelesaian);
+            hazardReportRepo.save(hazardReport);
+        }
 
         Map<String, Object> response = new HashMap<>();
         response.put("httpStatus", HttpStatus.CREATED.value());
-        response.put("data", savePenyelesaian);
+        response.put("message", penyelesaianEntity.getId() == null ? "Resolution Added Succesfully" : "Resolution Updated Succesfully");
         return ResponseEntity.ok(response);
     }
 
@@ -314,6 +338,9 @@ public class SystemServiceImpl implements SystemService {
 
     @Override
     public ResponseEntity<Map<String, Object>> addSafetyTalk(SafetyTalkDTO safetyTalk) {
+
+        log.info("safety talk: {}", safetyTalk);
+
         Users users = usersRepo.findById(safetyTalk.getUserId())
                 .orElseThrow(()-> new EntityNotFoundException("User Not Found " + safetyTalk.getUserId()));
 
@@ -323,9 +350,11 @@ public class SystemServiceImpl implements SystemService {
         SafetyTalk newSafetyTalk = new SafetyTalk();
         newSafetyTalk.setDepartment(department);
         newSafetyTalk.setUser(users);
-        newSafetyTalk.setAttaintmentNumber(safetyTalk.getAttainmentNumber());
+        newSafetyTalk.setAttaintmentNumber(safetyTalk.getAttainmentNum());
+        newSafetyTalk.setTanggal(LocalDateTime.now().atZone(ZoneId.of("Asia/Jakarta")).toLocalDateTime());
+        safetyTalkRepo.save(newSafetyTalk);
 
-        return saveEntity(newSafetyTalk, safetyTalkRepo);
+        return saveEntityWithMessage("Safety Talk Berhasil Ditambahkan");
     }
 
     @Override
@@ -388,6 +417,46 @@ public class SystemServiceImpl implements SystemService {
         response.put("httpStatus", HttpStatus.OK.value());
         response.put("message", "Status Hazard Report updated successfully!");
         return ResponseEntity.ok(response);
+    }
+
+    @Override
+    public ResponseEntity<?> deleteHistoryStatus(Long id) {
+        Optional<HazardStatusHistory> reportOptional = hazardStatusHistoryRepo.findById(id);
+        if (reportOptional.isPresent()) {
+            HazardStatusHistory hazardStatusHistory = reportOptional.get();
+
+            String fileName = hazardStatusHistory.getReport().getGambar();
+            String filePath = path + "uploads/" + hazardStatusHistory.getId();
+            File fileToDelete = new File(filePath, fileName);
+
+            if (fileToDelete.exists() && !fileToDelete.delete()) {
+                handleExceptionByMessage("Failed to delete file " + fileName);
+            }
+
+            File directory = new File(filePath);
+            if (directory.exists() && directory.isDirectory()) {
+                try {
+                    FileUtils.deleteDirectory(directory);
+                } catch (IOException e){
+                    handleExceptionByMessage("Error while deleting file " + e.getMessage());
+                }
+            }
+
+            hazardStatusHistoryRepo.delete(hazardStatusHistory);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("httpStatus", HttpStatus.OK.value());
+            response.put("message", "Delete Report Berhasil");
+
+            return ResponseEntity.ok(response);
+        } else {
+            return handleExceptionByMessage("Report Not Found " + id);
+        }
+    }
+
+    @Override
+    public ResponseEntity<Map<String, Object>> getAllUser() {
+        return getAllData(usersRepo.findByRoleId(2L));
     }
 
     private <T> ResponseEntity<?> fetchImage(Supplier<T> entitySupplier, Function<T, String> imagePathFunction, String notFoundMessage) {

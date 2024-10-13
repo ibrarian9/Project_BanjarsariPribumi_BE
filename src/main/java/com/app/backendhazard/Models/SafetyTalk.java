@@ -3,6 +3,8 @@ package com.app.backendhazard.Models;
 import jakarta.persistence.*;
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Data
 @Table(name = "safety_talk")
@@ -18,4 +20,6 @@ public class SafetyTalk {
     private Users user;
     @Column(name = "pencapaian", length = 2)
     private Long attaintmentNumber;
+    @Column(name = "tanggal")
+    private LocalDateTime tanggal;
 }

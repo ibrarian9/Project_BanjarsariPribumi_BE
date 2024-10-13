@@ -1,5 +1,6 @@
 package com.app.backendhazard.Models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -22,6 +23,7 @@ public class Users {
     private String nik;
     @Column(name = "email", length = 50, nullable = false)
     private String email;
+    @JsonIgnore
     @Column(name = "password", length = 120, nullable = false)
     private String password;
     @ManyToOne
