@@ -225,15 +225,6 @@ public class SystemControllers {
         }
     }
 
-    @GetMapping(path = "/historyStatus", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getAllHazardStatusHistory(){
-        try {
-            return systemService.getAllHistoryStatus();
-        } catch (Exception e){
-            return handleException(e);
-        }
-    }
-
     @GetMapping(path = "/historyStatus/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getDetailHazardStatusHistory(@PathVariable Long id){
         try {
@@ -259,6 +250,31 @@ public class SystemControllers {
         } catch (Exception e){
             return handleException(e);
         }
+    }
+
+    @GetMapping(path = "/historyStatus", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> searchStatusHistory(@RequestParam(value = "q", required = false) String search){
+        try {
+            return systemService.searchAllHistoryStatus(search);
+        } catch (Exception e){
+            return handleException(e);
+        }
+    }
+
+    @GetMapping(path = "/historyStatus/filter", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> filterSearchHistory(
+            @RequestParam(value = "dept", required = false) String dept,
+            @RequestParam(value = "status", required = false) String status){
+        try {
+            return systemService.filterAllHistoryStatus(dept, status);
+        } catch (Exception e){
+            return handleException(e);
+        }
+    }
+
+    @GetMapping(value = "historyStatus/export")
+    public ResponseEntity<?> exportStatusHistory(){
+        return systemService.exportToExcel();
     }
 
     @GetMapping(value = "/users", produces = MediaType.APPLICATION_JSON_VALUE)

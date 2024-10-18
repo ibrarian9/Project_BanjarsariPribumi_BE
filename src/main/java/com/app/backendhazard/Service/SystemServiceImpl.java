@@ -7,11 +7,17 @@ import com.app.backendhazard.Repository.*;
 import com.app.backendhazard.Response.ErrorResponse;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.AllArgsConstructor;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.apache.tomcat.util.http.fileupload.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +26,8 @@ import org.springframework.util.StreamUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -373,13 +381,18 @@ public class SystemServiceImpl implements SystemService {
     }
 
     @Override
-    public ResponseEntity<Map<String, Object>> getAllHistoryStatus() {
-        return getAllData(hazardStatusHistoryRepo.findAll());
+    public ResponseEntity<Map<String, Object>> getDetailHistoryStatus(Long id) {
+        return getDetailData(id, hazardStatusHistoryRepo);
     }
 
     @Override
-    public ResponseEntity<Map<String, Object>> getDetailHistoryStatus(Long id) {
-        return getDetailData(id, hazardStatusHistoryRepo);
+    public ResponseEntity<Map<String, Object>> searchAllHistoryStatus(String search) {
+        return getAllData(hazardStatusHistoryRepo.searchHazardStatusHistory(search));
+    }
+
+    @Override
+    public ResponseEntity<Map<String, Object>> filterAllHistoryStatus(String dept, String status) {
+        return getAllData(hazardStatusHistoryRepo.filterByDepartmentAndStatus(dept, status));
     }
 
     @Override
@@ -457,6 +470,54 @@ public class SystemServiceImpl implements SystemService {
     @Override
     public ResponseEntity<Map<String, Object>> getAllUser() {
         return getAllData(usersRepo.findByRoleId(2L));
+    }
+
+    @Override
+    public ResponseEntity<?> exportToExcel() {
+        List<HazardStatusHistory> data = hazardStatusHistoryRepo.findAll();
+
+        try {
+            Workbook workbook = new XSSFWorkbook();
+            Sheet sheet = workbook.createSheet("Hazard Report");
+
+            Row headerRow = sheet.createRow(0);
+            headerRow.createCell(0).setCellValue("ID");
+            headerRow.createCell(1).setCellValue("Title");
+            headerRow.createCell(2).setCellValue("Nama Pelapor");
+            headerRow.createCell(3).setCellValue("Lokasi");
+            headerRow.createCell(4).setCellValue("Status");
+            headerRow.createCell(5).setCellValue("Tindakan");
+            headerRow.createCell(6).setCellValue("Update By");
+            headerRow.createCell(7).setCellValue("Update Date");
+
+            int rowNum = 1;
+            for (HazardStatusHistory report : data) {
+                Row row = sheet.createRow(rowNum++);
+                row.createCell(0).setCellValue(report.getId());
+                row.createCell(1).setCellValue(report.getReport().getTitle());
+                row.createCell(2).setCellValue(report.getReport().getNamaPelapor());
+                row.createCell(3).setCellValue(report.getReport().getLokasi());
+                row.createCell(4).setCellValue(report.getStatus().getNamaStatus());
+                row.createCell(5).setCellValue(report.getReport().getTindakan());
+                row.createCell(6).setCellValue(report.getUpdateBy());
+                row.createCell(7).setCellValue(report.getUpdateDate().toString());
+            }
+
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            workbook.write(outputStream);
+            workbook.close();
+            ByteArrayInputStream inputStream = new ByteArrayInputStream(outputStream.toByteArray());
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.add("Content-Disposition", "attachment; filename=hazard_reports.xlsx");
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                    .body(new InputStreamResource(inputStream));
+        } catch (IOException e){
+            return handleException(e);
+        }
     }
 
     private <T> ResponseEntity<?> fetchImage(Supplier<T> entitySupplier, Function<T, String> imagePathFunction, String notFoundMessage) {

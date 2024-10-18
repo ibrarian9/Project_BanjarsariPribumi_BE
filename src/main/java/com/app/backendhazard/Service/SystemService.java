@@ -31,10 +31,12 @@ public interface SystemService {
     ResponseEntity<Map<String, Object>> getAllStatusKaryawan();
     ResponseEntity<Map<String, Object>> getDetailStatusKaryawan(Long id);
     ResponseEntity<Map<String, Object>> getAllStatus();
-    ResponseEntity<Map<String, Object>> getAllHistoryStatus();
     ResponseEntity<Map<String, Object>> getDetailHistoryStatus(Long id);
+    ResponseEntity<Map<String, Object>> searchAllHistoryStatus(String search);
+    ResponseEntity<Map<String, Object>> filterAllHistoryStatus(String dept, String status);
     ResponseEntity<?> editHistoryStatus(Long id, HazardStatusDTO hazardStatusDTO);
     ResponseEntity<?> deleteHistoryStatus(Long id);
     ResponseEntity<Map<String, Object>> getAllUser();
+    ResponseEntity<?> exportToExcel();
 //    ResponseEntity<Map<String, Object>> addInspectionQuestion();
 }
