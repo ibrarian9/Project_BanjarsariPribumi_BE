@@ -10,6 +10,9 @@ public class InspectionQuestion {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    @ManyToOne
+    @JoinColumn(name = "area_kerja_id")
+    private AreaKerja areaKerja;
     @Column(name = "question")
     private String question;
 }

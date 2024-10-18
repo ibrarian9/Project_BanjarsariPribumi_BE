@@ -3,9 +3,6 @@ package com.app.backendhazard.Models;
 import jakarta.persistence.*;
 import lombok.Data;
 
-import java.util.ArrayList;
-import java.util.List;
-
 @Entity
 @Data
 @Table(name = "daily_inspection")
@@ -28,6 +25,4 @@ public class DailyInspection {
     private AreaKerja areaKerja;
     @Column(name = "keterangan_area_kerja")
     private String keteranganAreaKerja;
-    @OneToMany(mappedBy = "dailyInspection", cascade = CascadeType.ALL)
-    private List<Inspection> inspectionAnswers = new ArrayList<>();
 }

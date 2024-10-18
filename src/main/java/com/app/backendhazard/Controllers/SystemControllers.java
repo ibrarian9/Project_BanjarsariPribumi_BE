@@ -126,7 +126,16 @@ public class SystemControllers {
         return systemService.imageForResolution(id);
     }
 
-    @GetMapping(path = "/inspection", produces = MediaType.APPLICATION_JSON_VALUE)
+    @PostMapping(path = "/dailyInspection/add", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> postInspection(@RequestBody DailyInspectionDTO inspectionDTO) {
+        try {
+            return systemService.addInspection(inspectionDTO);
+        } catch (Exception e){
+            return handleException(e);
+        }
+    }
+
+    @GetMapping(path = "/dailyInspection", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getAllInspection() {
         try {
             return systemService.getAllInspection();
@@ -140,6 +149,33 @@ public class SystemControllers {
         try {
             return systemService.getDetailInspection(id);
         } catch (Exception e){
+            return handleException(e);
+        }
+    }
+
+    @GetMapping(path = "/inspectionQuestion/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getQuestions(@PathVariable Long id) {
+        try {
+            return systemService.getInspectionQuestion(id);
+        } catch (Exception e) {
+            return handleException(e);
+        }
+    }
+
+    @PostMapping(path = "/inspectionAnswer/add", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> postAnswer(@RequestBody AnswerDTO inspectionAnswer) {
+        try {
+            return systemService.addInspectionAnswer(inspectionAnswer);
+        } catch (Exception e) {
+            return handleException(e);
+        }
+    }
+
+    @PostMapping(path = "/detailDailyInspection", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> postDetailDaily(@RequestBody DetailInspectionDTO detailInspectionDTO) {
+        try {
+            return systemService.addDetailDailyInspection(detailInspectionDTO);
+        } catch (Exception e) {
             return handleException(e);
         }
     }

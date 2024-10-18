@@ -16,6 +16,9 @@ public class Inspection {
     @ManyToOne
     @JoinColumn(name = "inspection_question_id", referencedColumnName = "id")
     private InspectionQuestion inspectionQuestion;
+    @OneToOne
+    @JoinColumn(name = "inspection_answer_id", referencedColumnName = "id")
+    private InspectionAnswer inspectionAnswer;
     @Column(name = "answer")
     private Integer answer;
     @Column(name = "catatan")

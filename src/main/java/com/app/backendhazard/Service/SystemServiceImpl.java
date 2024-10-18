@@ -22,6 +22,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StreamUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -59,6 +60,9 @@ public class SystemServiceImpl implements SystemService {
     private final HazardReportRepository hazardReportRepo;
     private final DailyInspectionRepository dailyInspectionRepo;
     private final StatusCompanyRepository statusCompanyRepository;
+    private final DetailDailyInspectionRepository detailDailyInspectionRepo;
+    private final QuestionInspectionRepository questionInspectionRepo;
+    private final AnswerInspectionRepository answerInspectionRepo;
     private final String path = "src/main/resources/";
 
     private <T> ResponseEntity<Map<String, Object>> getAllData(List<T> list) {
@@ -188,12 +192,9 @@ public class SystemServiceImpl implements SystemService {
         history.setStatus(status);
         history.setUpdateBy("Admin");
         history.setUpdateDate(LocalDateTime.now().atZone(ZoneId.of("Asia/Jakarta")).toLocalDateTime());
-        hazardStatusHistoryRepo.save(history);
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("httpStatus", HttpStatus.CREATED.value());
-        response.put("message", "Hazard Report Berhasil Dibuat!");
-        return ResponseEntity.ok(response);
+        hazardStatusHistoryRepo.save(history);
+        return saveEntityWithMessage("Hazard Report Berhasil Dibuat!");
     }
 
     @Override
@@ -258,8 +259,53 @@ public class SystemServiceImpl implements SystemService {
     }
 
     @Override
+    public ResponseEntity<Map<String, Object>> getInspectionQuestion(Long areakerjaId) {
+        return getAllData(questionInspectionRepo.findByAreaKerjaId(areakerjaId));
+    }
+
+    @Override
     public ResponseEntity<Map<String, Object>> getDetailInspection(Long id) {
         return getDetailData(id, dailyInspectionRepo);
+    }
+
+    @Transactional
+    @Override
+    public ResponseEntity<?> addInspectionAnswer(AnswerDTO answerDTO) {
+        InspectionQuestion question = questionInspectionRepo.findById(answerDTO.getInspectionQuestionId())
+                .orElseThrow(() -> new EntityNotFoundException("Question Not Found " + answerDTO.getInspectionQuestionId()));
+
+        DetailDailyInspection dailyInspection = detailDailyInspectionRepo.findById(answerDTO.getDetailDailyInspectionId())
+                .orElseThrow(() -> new EntityNotFoundException("Daily Inspection Not Found " + answerDTO.getDetailDailyInspectionId()));
+
+        InspectionAnswer answer = new InspectionAnswer();
+        answer.setInspectionQuestion(question);
+        answer.setDetailDailyInspection(dailyInspection);
+        answer.setJawaban(answerDTO.getJawaban());
+        answer.setCatatan(answerDTO.getCatatan());
+        answer.setGambar(answerDTO.getGambar());
+
+        answerInspectionRepo.save(answer);
+        return saveEntityWithMessage("Answer added successfully");
+    }
+
+    @Override
+    public ResponseEntity<Map<String, Object>> addDetailDailyInspection(DetailInspectionDTO detailInspectionDTO) {
+        DailyInspection dailyInspection = dailyInspectionRepo.findById(detailInspectionDTO.getDailyInspectionId())
+                .orElseThrow(() -> new EntityNotFoundException("Daily Inspection Not Found " + detailInspectionDTO.getDailyInspectionId()));
+
+        InspectionQuestion inspectionQuestion = questionInspectionRepo.findById(detailInspectionDTO.getQuestionId())
+                .orElseThrow(() -> new EntityNotFoundException("Question Not Found " + detailInspectionDTO.getQuestionId()));
+
+        InspectionAnswer inspectionAnswer = answerInspectionRepo.findById(detailInspectionDTO.getAnswerId())
+                .orElseThrow(() -> new EntityNotFoundException("Answer Not Found " + detailInspectionDTO.getAnswerId()));
+
+        DetailDailyInspection detailDailyInspection = new DetailDailyInspection();
+        detailDailyInspection.setDailyInspection(dailyInspection);
+        detailDailyInspection.setInspectionQuestion(inspectionQuestion);
+        detailDailyInspection.setInspectionAnswer(inspectionAnswer);
+
+        detailDailyInspectionRepo.save(detailDailyInspection);
+        return saveEntityWithMessage("Detail Daily Inspection added successfully");
     }
 
     @Override

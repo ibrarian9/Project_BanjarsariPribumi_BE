@@ -20,7 +20,10 @@ public interface SystemService {
     ResponseEntity<?> deleteHazardReport(Long id);
     ResponseEntity<Map<String, Object>> getAllInspection();
     ResponseEntity<Map<String, Object>> addInspection(DailyInspectionDTO inspection);
+    ResponseEntity<Map<String, Object>> getInspectionQuestion(Long areakerjaId);
     ResponseEntity<Map<String, Object>> getDetailInspection(Long id);
+    ResponseEntity<?> addInspectionAnswer(AnswerDTO answerDTO);
+    ResponseEntity<Map<String, Object>> addDetailDailyInspection(DetailInspectionDTO detailInspectionDTO);
     ResponseEntity<Map<String, Object>> addPencapaian(Pencapaian pencapaian);
     ResponseEntity<?> addPenyelesaian(Long id, PenyelesaianDTO penyelesaian, MultipartFile gambar);
     ResponseEntity<?> imageForHazardReport(Long id);
@@ -38,5 +41,4 @@ public interface SystemService {
     ResponseEntity<?> deleteHistoryStatus(Long id);
     ResponseEntity<Map<String, Object>> getAllUser();
     ResponseEntity<?> exportToExcel();
-//    ResponseEntity<Map<String, Object>> addInspectionQuestion();
 }
