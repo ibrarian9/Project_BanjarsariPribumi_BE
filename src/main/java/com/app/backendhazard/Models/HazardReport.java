@@ -23,6 +23,9 @@ public class HazardReport {
     @Column(columnDefinition = "TEXT")
     private String deskripsi;
     @ManyToOne
+    @JoinColumn(name = "kategori_temuan_id", referencedColumnName = "id", nullable = false)
+    private KategoriTemuan kategoriTemuan;
+    @ManyToOne
     @JoinColumn(name = "department_pelapor_id", referencedColumnName = "id", nullable = false)
     private Department departmentPelapor;
     @ManyToOne

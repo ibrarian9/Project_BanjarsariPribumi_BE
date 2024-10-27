@@ -33,12 +33,10 @@ import java.io.File;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 @Service
 @AllArgsConstructor
@@ -63,9 +61,17 @@ public class SystemServiceImpl implements SystemService {
     private final DetailDailyInspectionRepository detailDailyInspectionRepo;
     private final QuestionInspectionRepository questionInspectionRepo;
     private final AnswerInspectionRepository answerInspectionRepo;
+    private final KategoriTemuanRepository kategoriTemuanRepo;
     private final String path = "src/main/resources/";
 
     private <T> ResponseEntity<Map<String, Object>> getAllData(List<T> list) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("httpStatus", HttpStatus.OK.value());
+        response.put("data", list);
+        return ResponseEntity.ok(response);
+    }
+
+    private ResponseEntity<Map<String, Object>> getAllDataDTO(DetailInspectionResponseDTO list) {
         Map<String, Object> response = new HashMap<>();
         response.put("httpStatus", HttpStatus.OK.value());
         response.put("data", list);
@@ -159,12 +165,16 @@ public class SystemServiceImpl implements SystemService {
         newReport.setDeskripsi(hazardReport.getDeskripsi());
         newReport.setTindakan(hazardReport.getTindakan());
 
+        KategoriTemuan kategoriTemuan = kategoriTemuanRepo.findById(hazardReport.getKategoriTemuanId())
+                .orElseThrow(() -> new EntityNotFoundException("Kategori Temuan Not Found " + hazardReport.getKategoriTemuanId()));
+
         Department departmentPelapor = departmentRepo.findById(hazardReport.getDepartmentPelaporId())
                 .orElseThrow(() -> new EntityNotFoundException("Department Pelapor Not Found " + hazardReport.getDepartmentPelaporId()));
 
         Department departmentPerbaikan = departmentRepo.findById(hazardReport.getDepartmentPerbaikanId())
                 .orElseThrow(() -> new EntityNotFoundException("Department Perbaikan Not Found " + hazardReport.getDepartmentPerbaikanId()));
 
+        newReport.setKategoriTemuan(kategoriTemuan);
         newReport.setDepartmentPelapor(departmentPelapor);
         newReport.setDepartmentPerbaikan(departmentPerbaikan);
         newReport.setTanggalKejadian(LocalDateTime.now().atZone(ZoneId.of("Asia/Jakarta")).toLocalDateTime());
@@ -239,26 +249,6 @@ public class SystemServiceImpl implements SystemService {
     }
 
     @Override
-    public ResponseEntity<Map<String, Object>> addInspection(DailyInspectionDTO inspection) {
-        Department departmentPengawas = departmentRepo.findById(inspection.getDepartmentPengawasId())
-                .orElseThrow(() -> new EntityNotFoundException("Department Pengawas Not Found " + inspection.getDepartmentPengawasId()));
-
-        Shift shiftKerja = shiftRepo.findById(inspection.getShiftKerjaId())
-                .orElseThrow(() -> new EntityNotFoundException("Shift Kerja Not Found " + inspection.getShiftKerjaId()));
-
-        AreaKerja areaKerja = areaKerjaRepo.findById(inspection.getAreaKerjaId())
-                .orElseThrow(() -> new EntityNotFoundException("Area Kerja Not Found " + inspection.getAreaKerjaId()));
-
-        DailyInspection dailyInspection = new DailyInspection();
-        dailyInspection.setNamaPengawas(inspection.getNamaPengawas());
-        dailyInspection.setDepartmentPengawas(departmentPengawas);
-        dailyInspection.setShiftKerja(shiftKerja);
-        dailyInspection.setAreaKerja(areaKerja);
-
-        return saveEntity(dailyInspection, dailyInspectionRepo);
-    }
-
-    @Override
     public ResponseEntity<Map<String, Object>> getInspectionQuestion(Long areakerjaId) {
         return getAllData(questionInspectionRepo.findByAreaKerjaId(areakerjaId));
     }
@@ -270,22 +260,133 @@ public class SystemServiceImpl implements SystemService {
 
     @Transactional
     @Override
-    public ResponseEntity<?> addInspectionAnswer(AnswerDTO answerDTO) {
-        InspectionQuestion question = questionInspectionRepo.findById(answerDTO.getInspectionQuestionId())
-                .orElseThrow(() -> new EntityNotFoundException("Question Not Found " + answerDTO.getInspectionQuestionId()));
+    public ResponseEntity<?> addInspectionAnswer(
+           InspectionRequestDTO requestDTO
+    ) {
+        // Check id
+        Department departmentPengawas = departmentRepo.findById(requestDTO.getDailyInspectionDTO().getDepartmentPengawasId())
+                .orElseThrow(() -> new EntityNotFoundException("Department Pengawas Not Found " + requestDTO.getDailyInspectionDTO().getDepartmentPengawasId()));
 
-        DetailDailyInspection dailyInspection = detailDailyInspectionRepo.findById(answerDTO.getDetailDailyInspectionId())
-                .orElseThrow(() -> new EntityNotFoundException("Daily Inspection Not Found " + answerDTO.getDetailDailyInspectionId()));
+        Shift shiftKerja = shiftRepo.findById(requestDTO.getDailyInspectionDTO().getShiftKerjaId())
+                .orElseThrow(() -> new EntityNotFoundException("Shift Kerja Not Found " + requestDTO.getDailyInspectionDTO().getShiftKerjaId()));
 
-        InspectionAnswer answer = new InspectionAnswer();
-        answer.setInspectionQuestion(question);
-        answer.setDetailDailyInspection(dailyInspection);
-        answer.setJawaban(answerDTO.getJawaban());
-        answer.setCatatan(answerDTO.getCatatan());
-        answer.setGambar(answerDTO.getGambar());
+        AreaKerja areaKerja = areaKerjaRepo.findById(requestDTO.getDailyInspectionDTO().getAreaKerjaId())
+                .orElseThrow(() -> new EntityNotFoundException("Area Kerja Not Found " + requestDTO.getDailyInspectionDTO().getAreaKerjaId()));
 
-        answerInspectionRepo.save(answer);
+        // Create new Daily Inspection Entity
+        DailyInspection dailyInspection = new DailyInspection();
+        dailyInspection.setNamaPengawas(requestDTO.getDailyInspectionDTO().getNamaPengawas());
+        dailyInspection.setTanggalInspeksi(requestDTO.getDailyInspectionDTO().getTanggalInspeksi());
+        dailyInspection.setDepartmentPengawas(departmentPengawas);
+        dailyInspection.setShiftKerja(shiftKerja);
+        dailyInspection.setAreaKerja(areaKerja);
+        dailyInspection.setKeteranganAreaKerja(requestDTO.getDailyInspectionDTO().getKeteranganAreaKerja());
+
+        DailyInspection savedDailyInspection = dailyInspectionRepo.save(dailyInspection);
+
+        List<DetailDailyInspection> detailToSave = new ArrayList<>();
+
+        // Process each AnswerDTO & Create Detail Daily Inspection records
+        for (AnswerDTO answerDTO : requestDTO.getAnswerDTOList() ) {
+            // Check id
+            InspectionQuestion inspectionQuestion = questionInspectionRepo.findById(answerDTO.getQuestionId())
+                    .orElseThrow(() -> new EntityNotFoundException("Question Not Found " + answerDTO.getQuestionId()));
+
+            // Create & save the Inspection Answer entity
+            InspectionAnswer answer = new InspectionAnswer();
+            answer.setJawaban(answerDTO.getJawaban());
+            answer.setCatatan(answerDTO.getCatatan());
+            answer.setGambar(answerDTO.getGambar());
+
+            // save answer & directly use the saved instance
+            InspectionAnswer savedAnswer = answerInspectionRepo.save(answer);
+
+            // Create a new Detail Daily Inspection entry
+            DetailDailyInspection detailDailyInspection = new DetailDailyInspection();
+            detailDailyInspection.setInspectionQuestion(inspectionQuestion);
+            detailDailyInspection.setInspectionAnswer(savedAnswer);
+            detailDailyInspection.setDailyInspection(savedDailyInspection);
+
+            // Add to List for batch saving
+            detailToSave.add(detailDailyInspection);
+        }
+        // Batch save all DetailDailyInspection record
+        detailDailyInspectionRepo.saveAll(detailToSave);
+
         return saveEntityWithMessage("Answer added successfully");
+    }
+
+    @Override
+    public ResponseEntity<Map<String, Object>> getDetailInspectionAnswer(Long id) {
+
+        DailyInspection dailyInspection = dailyInspectionRepo.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Daily Inspection Not Found " + id));
+
+        List<DetailDailyInspection> detailList = detailDailyInspectionRepo.findByDailyInspectionId(id);
+
+        List<QuestionAnswerDTO> questionAnswerDTOList = detailList.stream().map(detail -> {
+            // Show Question
+            QuestionAnswerDTO dto = new QuestionAnswerDTO();
+            dto.setQuestionText(detail.getInspectionQuestion().getQuestion());
+
+            // Show Answer
+            DetailAnswerDTO answerDTO = new DetailAnswerDTO();
+            answerDTO.setJawaban(detail.getInspectionAnswer().getJawaban());
+            answerDTO.setCatatan(detail.getInspectionAnswer().getCatatan());
+
+            dto.setAnswerDetail(answerDTO);
+            return dto;
+        }).toList();
+
+        // Set Answer Question to Daily Inspection
+        dailyInspection.setDetailQuestionAnswers(questionAnswerDTOList);
+
+        // Wrap the modified Daily Inspection in the response DTO
+        DetailInspectionResponseDTO responseDTO = new DetailInspectionResponseDTO();
+        responseDTO.setDailyInspection(dailyInspection);
+
+        return getAllDataDTO(responseDTO);
+    }
+
+    @Override
+    public ResponseEntity<Map<String, Object>> getAllDailyInspection() {
+        // Fetch All Detail Daily Inspection
+        List<DetailDailyInspection> dailyInspections = detailDailyInspectionRepo.findAll();
+
+        // Group by DailyInspection ID
+        Map<Long, List<DetailDailyInspection>> groupByDailyInspection = dailyInspections.stream()
+                .collect(Collectors.groupingBy(d -> d.getDailyInspection().getId()));
+
+        // Map each Detail Daily Inspection to a structured response with its related question
+        List<DetailInspectionResponseDTO> inspectionResponseDTO = groupByDailyInspection.values().stream().map(detailData -> {
+
+            DailyInspection dailyInspection = detailData.get(0).getDailyInspection();
+
+            // Map each Detail Daily Inspection to a DTO
+            List<QuestionAnswerDTO> questionAnswerDTOList = detailData.stream().map(data -> {
+                // Set Answer
+                DetailAnswerDTO answerDTO = new DetailAnswerDTO();
+                answerDTO.setCatatan(data.getInspectionAnswer().getCatatan());
+                answerDTO.setJawaban(data.getInspectionAnswer().getJawaban());
+
+                // Set Question Answer
+                QuestionAnswerDTO dto = new QuestionAnswerDTO();
+                dto.setQuestionText(data.getInspectionQuestion().getQuestion());
+                dto.setAnswerDetail(answerDTO);
+
+                return dto;
+            }).toList();
+
+            dailyInspection.setDetailQuestionAnswers(questionAnswerDTOList);
+
+            // Set Daily Inspection & Question Answer
+            DetailInspectionResponseDTO responseDTO = new DetailInspectionResponseDTO();
+            responseDTO.setDailyInspection(dailyInspection);
+
+            return responseDTO;
+        }).toList();
+
+        return getAllData(inspectionResponseDTO);
     }
 
     @Override
@@ -433,7 +534,9 @@ public class SystemServiceImpl implements SystemService {
 
     @Override
     public ResponseEntity<Map<String, Object>> searchAllHistoryStatus(String search) {
-        return getAllData(hazardStatusHistoryRepo.searchHazardStatusHistory(search));
+        List<HazardStatusHistory> data = hazardStatusHistoryRepo.searchHazardStatusHistory(search);
+        data.sort(Comparator.comparing(HazardStatusHistory::getId).reversed());
+        return getAllData(data);
     }
 
     @Override
@@ -564,6 +667,21 @@ public class SystemServiceImpl implements SystemService {
         } catch (IOException e){
             return handleException(e);
         }
+    }
+
+    @Override
+    public ResponseEntity<Map<String, Object>> getAllWorkArea() {
+        return getAllData(areaKerjaRepo.findAll());
+    }
+
+    @Override
+    public ResponseEntity<Map<String, Object>> getAllShift() {
+        return getAllData(shiftRepo.findAll());
+    }
+
+    @Override
+    public ResponseEntity<Map<String, Object>> getAllFindings() {
+        return getAllData(kategoriTemuanRepo.findAll());
     }
 
     private <T> ResponseEntity<?> fetchImage(Supplier<T> entitySupplier, Function<T, String> imagePathFunction, String notFoundMessage) {

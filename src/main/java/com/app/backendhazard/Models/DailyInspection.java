@@ -1,7 +1,10 @@
 package com.app.backendhazard.Models;
 
+import com.app.backendhazard.DTO.QuestionAnswerDTO;
 import jakarta.persistence.*;
 import lombok.Data;
+
+import java.util.List;
 
 @Entity
 @Data
@@ -25,4 +28,6 @@ public class DailyInspection {
     private AreaKerja areaKerja;
     @Column(name = "keterangan_area_kerja")
     private String keteranganAreaKerja;
+    @Transient
+    private List<QuestionAnswerDTO> detailQuestionAnswers;
 }

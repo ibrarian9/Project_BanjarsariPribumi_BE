@@ -1,7 +1,7 @@
 package com.app.backendhazard.Service;
 
 import com.app.backendhazard.DTO.*;
-import com.app.backendhazard.Models.*;
+import com.app.backendhazard.Models.Pencapaian;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -19,10 +19,11 @@ public interface SystemService {
     ResponseEntity<?> addHazardReport(HazardReportDTO hazardReport, MultipartFile gambar);
     ResponseEntity<?> deleteHazardReport(Long id);
     ResponseEntity<Map<String, Object>> getAllInspection();
-    ResponseEntity<Map<String, Object>> addInspection(DailyInspectionDTO inspection);
     ResponseEntity<Map<String, Object>> getInspectionQuestion(Long areakerjaId);
     ResponseEntity<Map<String, Object>> getDetailInspection(Long id);
-    ResponseEntity<?> addInspectionAnswer(AnswerDTO answerDTO);
+    ResponseEntity<?> addInspectionAnswer(InspectionRequestDTO requestDTO);
+    ResponseEntity<Map<String, Object>> getDetailInspectionAnswer(Long id);
+    ResponseEntity<Map<String, Object>> getAllDailyInspection();
     ResponseEntity<Map<String, Object>> addDetailDailyInspection(DetailInspectionDTO detailInspectionDTO);
     ResponseEntity<Map<String, Object>> addPencapaian(Pencapaian pencapaian);
     ResponseEntity<?> addPenyelesaian(Long id, PenyelesaianDTO penyelesaian, MultipartFile gambar);
@@ -41,4 +42,7 @@ public interface SystemService {
     ResponseEntity<?> deleteHistoryStatus(Long id);
     ResponseEntity<Map<String, Object>> getAllUser();
     ResponseEntity<?> exportToExcel();
+    ResponseEntity<Map<String, Object>> getAllWorkArea();
+    ResponseEntity<Map<String, Object>> getAllShift();
+    ResponseEntity<Map<String, Object>> getAllFindings();
 }

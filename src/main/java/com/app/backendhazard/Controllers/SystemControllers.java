@@ -126,15 +126,6 @@ public class SystemControllers {
         return systemService.imageForResolution(id);
     }
 
-    @PostMapping(path = "/dailyInspection/add", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> postInspection(@RequestBody DailyInspectionDTO inspectionDTO) {
-        try {
-            return systemService.addInspection(inspectionDTO);
-        } catch (Exception e){
-            return handleException(e);
-        }
-    }
-
     @GetMapping(path = "/dailyInspection", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getAllInspection() {
         try {
@@ -163,9 +154,9 @@ public class SystemControllers {
     }
 
     @PostMapping(path = "/inspectionAnswer/add", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> postAnswer(@RequestBody AnswerDTO inspectionAnswer) {
+    public ResponseEntity<?> postAnswer(@RequestBody InspectionRequestDTO requestDTO) {
         try {
-            return systemService.addInspectionAnswer(inspectionAnswer);
+            return systemService.addInspectionAnswer(requestDTO);
         } catch (Exception e) {
             return handleException(e);
         }
@@ -176,6 +167,24 @@ public class SystemControllers {
         try {
             return systemService.addDetailDailyInspection(detailInspectionDTO);
         } catch (Exception e) {
+            return handleException(e);
+        }
+    }
+
+    @GetMapping(path = "/dailyInspection/all", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getAllDailyInspection() {
+        try {
+            return systemService.getAllDailyInspection();
+        } catch (Exception e){
+            return handleException(e);
+        }
+    }
+
+    @GetMapping(path = "/dailyInspection/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getDetailDailyInspection(@PathVariable Long id) {
+        try {
+            return systemService.getDetailInspectionAnswer(id);
+        } catch (Exception e){
             return handleException(e);
         }
     }
@@ -317,6 +326,33 @@ public class SystemControllers {
     public ResponseEntity<?> getAllUsers(){
         try {
             return systemService.getAllUser();
+        } catch (Exception e){
+            return handleException(e);
+        }
+    }
+
+    @GetMapping(value = "/workArea", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getAllWorkArea() {
+        try {
+            return systemService.getAllWorkArea();
+        } catch (Exception e){
+            return handleException(e);
+        }
+    }
+
+    @GetMapping(value = "/workShift", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getAllWorkShift() {
+        try {
+            return systemService.getAllShift();
+        } catch (Exception e){
+            return handleException(e);
+        }
+    }
+
+    @GetMapping(value = "/findings", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getAllFindings() {
+        try {
+            return systemService.getAllFindings();
         } catch (Exception e){
             return handleException(e);
         }
