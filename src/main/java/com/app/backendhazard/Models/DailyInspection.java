@@ -28,6 +28,13 @@ public class DailyInspection {
     private AreaKerja areaKerja;
     @Column(name = "keterangan_area_kerja")
     private String keteranganAreaKerja;
+    @ManyToOne
+    @JoinColumn(name = "status_id", referencedColumnName = "id")
+    private Status status;
+    @Column(name = "alasan")
+    private String alasan;
+    @Column(name = "updateBy")
+    private String updateBy;
     @Transient
     private List<QuestionAnswerDTO> detailQuestionAnswers;
 }

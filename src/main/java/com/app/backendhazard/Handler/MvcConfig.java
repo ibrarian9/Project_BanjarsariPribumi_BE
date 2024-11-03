@@ -11,15 +11,17 @@ import java.nio.file.Paths;
 @Configuration
 public class MvcConfig implements WebMvcConfigurer {
 
+    private static final String BASE_URL = "upload";
+
     @Override
     public void addResourceHandlers(@NotNull ResourceHandlerRegistry registry) {
         exposeDir(registry);
     }
 
     private void exposeDir(ResourceHandlerRegistry registry) {
-        Path uploadDir = Paths.get("upload");
+        Path uploadDir = Paths.get(BASE_URL);
         String uploadPath = uploadDir.toFile().getAbsolutePath();
 
-        registry.addResourceHandler("/" + "upload" + "/**").addResourceLocations("file:/"+ uploadPath + "/");
+        registry.addResourceHandler("/" + BASE_URL + "/**").addResourceLocations("file:/"+ uploadPath + "/");
     }
 }

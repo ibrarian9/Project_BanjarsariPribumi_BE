@@ -1,11 +1,13 @@
 package com.app.backendhazard.Service;
 
 import com.app.backendhazard.DTO.*;
+import com.app.backendhazard.Handler.ExcelDateConverter;
 import com.app.backendhazard.Handler.FileUploadUtil;
 import com.app.backendhazard.Models.*;
 import com.app.backendhazard.Repository.*;
 import com.app.backendhazard.Response.ErrorResponse;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.AllArgsConstructor;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -14,7 +16,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.apache.tomcat.util.http.fileupload.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.http.HttpHeaders;
@@ -34,8 +36,6 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
-import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 @Service
@@ -62,7 +62,7 @@ public class SystemServiceImpl implements SystemService {
     private final QuestionInspectionRepository questionInspectionRepo;
     private final AnswerInspectionRepository answerInspectionRepo;
     private final KategoriTemuanRepository kategoriTemuanRepo;
-    private final String path = "src/main/resources/";
+    private final Integer reject = 3;
 
     private <T> ResponseEntity<Map<String, Object>> getAllData(List<T> list) {
         Map<String, Object> response = new HashMap<>();
@@ -145,16 +145,6 @@ public class SystemServiceImpl implements SystemService {
     }
 
     @Override
-    public ResponseEntity<Map<String, Object>> getAllHazardReport() {
-        return getAllData(hazardReportRepo.findAll());
-    }
-
-    @Override
-    public ResponseEntity<Map<String, Object>> getDetailedHazardReport(Long id) {
-        return getDetailData(id, hazardReportRepo);
-    }
-
-    @Override
     public ResponseEntity<?> addHazardReport(HazardReportDTO hazardReport, MultipartFile gambar) {
 
         // Create & set new Report
@@ -165,6 +155,7 @@ public class SystemServiceImpl implements SystemService {
         newReport.setDeskripsi(hazardReport.getDeskripsi());
         newReport.setTindakan(hazardReport.getTindakan());
 
+        // Set Related id with error handling
         KategoriTemuan kategoriTemuan = kategoriTemuanRepo.findById(hazardReport.getKategoriTemuanId())
                 .orElseThrow(() -> new EntityNotFoundException("Kategori Temuan Not Found " + hazardReport.getKategoriTemuanId()));
 
@@ -179,15 +170,17 @@ public class SystemServiceImpl implements SystemService {
         newReport.setDepartmentPerbaikan(departmentPerbaikan);
         newReport.setTanggalKejadian(LocalDateTime.now().atZone(ZoneId.of("Asia/Jakarta")).toLocalDateTime());
 
+        // Save initial report without the image
         HazardReport savedReport = hazardReportRepo.save(newReport);
 
         // Handle Image Upload
         String nameGambar = "gambar_" + System.currentTimeMillis() + ".jpg";
         savedReport.setGambar(nameGambar);
 
-        HazardReport hazardReport1 = hazardReportRepo.save(savedReport);
-        String uploadDir = path + "upload/" + hazardReport1.getId();
+        HazardReport hazardReportWithId = hazardReportRepo.save(savedReport);
+        String uploadDir = "upload/hazardReport/" + hazardReportWithId.getId();
 
+        // Save the image file
         try {
             FileUploadUtil.saveFile(uploadDir, nameGambar, gambar);
         } catch (Exception e){
@@ -198,49 +191,13 @@ public class SystemServiceImpl implements SystemService {
         HazardStatusHistory history = new HazardStatusHistory();
         Status status = statusRepo.findById(1L)
                 .orElseThrow(() -> new EntityNotFoundException("Status Pelapor Not Found" + 1L));
-        history.setReport(hazardReport1);
+        history.setReport(hazardReportWithId);
         history.setStatus(status);
         history.setUpdateBy("Admin");
         history.setUpdateDate(LocalDateTime.now().atZone(ZoneId.of("Asia/Jakarta")).toLocalDateTime());
 
         hazardStatusHistoryRepo.save(history);
         return saveEntityWithMessage("Hazard Report Berhasil Dibuat!");
-    }
-
-    @Override
-    public ResponseEntity<?> deleteHazardReport(Long id) {
-        Optional<HazardReport> reportOptional = hazardReportRepo.findById(id);
-
-        if (reportOptional.isPresent()) {
-            HazardReport hazardReport = reportOptional.get();
-
-            String fileName = hazardReport.getGambar();
-            String filePath = path + "uploads/" + hazardReport.getId();
-            File fileToDelete = new File(filePath, fileName);
-
-            if (fileToDelete.exists() && !fileToDelete.delete()) {
-                System.out.println("Failed to delete the file: " + fileToDelete.getPath());
-            }
-
-            File directory = new File(filePath);
-            if (directory.exists() && directory.isDirectory()) {
-                try {
-                    FileUtils.deleteDirectory(directory);
-                } catch (IOException e) {
-                    System.out.println("Error deleting directory: " + e.getMessage());
-                }
-            }
-
-            hazardReportRepo.delete(hazardReport);
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("httpStatus", HttpStatus.OK.value());
-            response.put("message", "Delete Berhasil");
-
-            return ResponseEntity.ok(response);
-        } else {
-            return handleExceptionByMessage("Hazard Report Not Found");
-        }
     }
 
     @Override
@@ -263,7 +220,13 @@ public class SystemServiceImpl implements SystemService {
     public ResponseEntity<?> addInspectionAnswer(
            InspectionRequestDTO requestDTO
     ) {
+        // Set Status to Open
+        Long open = 1L;
+
         // Check id
+        Status status = statusRepo.findById(open)
+                .orElseThrow(() -> new EntityNotFoundException("Status Not Found " + open));
+
         Department departmentPengawas = departmentRepo.findById(requestDTO.getDailyInspectionDTO().getDepartmentPengawasId())
                 .orElseThrow(() -> new EntityNotFoundException("Department Pengawas Not Found " + requestDTO.getDailyInspectionDTO().getDepartmentPengawasId()));
 
@@ -280,6 +243,7 @@ public class SystemServiceImpl implements SystemService {
         dailyInspection.setDepartmentPengawas(departmentPengawas);
         dailyInspection.setShiftKerja(shiftKerja);
         dailyInspection.setAreaKerja(areaKerja);
+        dailyInspection.setStatus(status);
         dailyInspection.setKeteranganAreaKerja(requestDTO.getDailyInspectionDTO().getKeteranganAreaKerja());
 
         DailyInspection savedDailyInspection = dailyInspectionRepo.save(dailyInspection);
@@ -349,9 +313,10 @@ public class SystemServiceImpl implements SystemService {
     }
 
     @Override
-    public ResponseEntity<Map<String, Object>> getAllDailyInspection() {
+    public ResponseEntity<Map<String, Object>> getAllDailyInspection(String search) {
         // Fetch All Detail Daily Inspection
-        List<DetailDailyInspection> dailyInspections = detailDailyInspectionRepo.findAll();
+        List<DetailDailyInspection> dailyInspections = (search == null || search.isEmpty())
+                ? detailDailyInspectionRepo.findAll() : detailDailyInspectionRepo.searchInspections(search);
 
         // Group by DailyInspection ID
         Map<Long, List<DetailDailyInspection>> groupByDailyInspection = dailyInspections.stream()
@@ -390,6 +355,36 @@ public class SystemServiceImpl implements SystemService {
     }
 
     @Override
+    public ResponseEntity<?> editStatusDailyInspection(Long id, DailyInspectionStatusDTO dailyInspectionStatusDTO) {
+        // Find Daily Inspection By id
+        DailyInspection dailyInspection = dailyInspectionRepo.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Daily Inspection Not Found " + id));
+
+        // Find Status by id
+        Status status = statusRepo.findById(dailyInspectionStatusDTO.getStatusId())
+                .orElseThrow(() -> new EntityNotFoundException("Status Not Found "+ dailyInspectionStatusDTO.getStatusId()));
+
+        // Update status & reason in daily inspection
+        dailyInspection.setStatus(status);
+
+        // Cek Status if Reject make the Reason required
+        if (status.getId() != null && status.getId().equals(reject)) {
+            if (!StringUtils.hasText(dailyInspectionStatusDTO.getAlasan())) {
+                ErrorResponse errorRes = new ErrorResponse(HttpStatus.BAD_REQUEST.value(), "Reason is required when status is Rejected");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorRes);
+            }
+            dailyInspection.setAlasan(dailyInspectionStatusDTO.getAlasan());
+        } else {
+            dailyInspection.setAlasan(dailyInspectionStatusDTO.getAlasan());
+        }
+
+        // save the updated Daily Inspection back to database
+        dailyInspectionRepo.save(dailyInspection);
+
+        return saveEntityWithMessage("Daily Inspection Update Status Successfully");
+    }
+
+    @Override
     public ResponseEntity<Map<String, Object>> addDetailDailyInspection(DetailInspectionDTO detailInspectionDTO) {
         DailyInspection dailyInspection = dailyInspectionRepo.findById(detailInspectionDTO.getDailyInspectionId())
                 .orElseThrow(() -> new EntityNotFoundException("Daily Inspection Not Found " + detailInspectionDTO.getDailyInspectionId()));
@@ -416,51 +411,59 @@ public class SystemServiceImpl implements SystemService {
 
     @Override
     public ResponseEntity<?> addPenyelesaian(Long id, PenyelesaianDTO penyelesaian, MultipartFile gambar) {
+        // check id department & hazard report exist
         Department department = departmentRepo.findById(penyelesaian.getDepartmentId())
                 .orElseThrow(() -> new EntityNotFoundException("Department Not Found"));
+        HazardReport hazardReport = hazardStatusHistoryRepo.findByReportId(id)
+                .orElseThrow(() -> new EntityNotFoundException("Hazard Report Not Found"))
+                .getReport();
 
-        HazardReport hazardReport = hazardReportRepo.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Hazard Report Not Found"));
-
+        // Create or retrieve existing Penyelesaian
         Penyelesaian penyelesaianEntity = hazardReport.getPenyelesaian();
-
         if (penyelesaianEntity == null) {
             penyelesaianEntity = new Penyelesaian();
         }
 
+        // Set Penyelesaian
         penyelesaianEntity.setDepartment(department);
         penyelesaianEntity.setNamaPenyelesaian(penyelesaian.getNamaPenyelesaian());
 
+        // Save Penyelesaian to assign an ID before handling the image
+        penyelesaianEntity = penyelesaianRepo.save(penyelesaianEntity);
+
+        // Check the ir have image or not
         if (gambar != null && !gambar.isEmpty()) {
             String oldImage = penyelesaianEntity.getGambar();
 
+            // make name for image
             String namaGambar = "resolution_" + System.currentTimeMillis() + ".jpg";
             penyelesaianEntity.setGambar(namaGambar);
 
-            String uploadDir = path + "upload/resolution/" + penyelesaianEntity.getId();
+            String uploadDir = "upload/resolution/" + penyelesaianEntity.getId();
             try {
                 if (oldImage != null && !oldImage.isEmpty()) {
-                    File oldFile = new File(uploadDir + "/" + oldImage);
-                    if (oldFile.exists()) {
-                        if (!oldFile.delete()) {
-                            throw new IOException("Failed to delete old file: " + oldImage);
-                        }
+                    File oldFile = new File(uploadDir, oldImage);
+                    if (oldFile.exists() && !oldFile.delete()) {
+                        return handleException(new IOException("Failed to delete old file: " + oldImage));
                     }
                 }
-
+                // Save the new image
                 FileUploadUtil.saveFile(uploadDir, namaGambar, gambar);
+
+                // Save the update penyelesaian Entity with the new Image name
+                penyelesaianEntity = penyelesaianRepo.save(penyelesaianEntity);
             } catch (Exception e) {
                 return handleException(e);
             }
         }
 
-        Penyelesaian savePenyelesaian = penyelesaianRepo.save(penyelesaianEntity);
-
+        // Update Hazard Report with the new Penyelesaian if not set
         if (hazardReport.getPenyelesaian() == null) {
-            hazardReport.setPenyelesaian(savePenyelesaian);
+            hazardReport.setPenyelesaian(penyelesaianEntity);
             hazardReportRepo.save(hazardReport);
         }
 
+        // Prepare Response
         Map<String, Object> response = new HashMap<>();
         response.put("httpStatus", HttpStatus.CREATED.value());
         response.put("message", penyelesaianEntity.getId() == null ? "Resolution Added Succesfully" : "Resolution Updated Succesfully");
@@ -469,16 +472,24 @@ public class SystemServiceImpl implements SystemService {
 
     @Override
     public ResponseEntity<?> imageForHazardReport(Long id) {
-        return fetchImage(() -> hazardReportRepo.findById(id)
-                        .orElseThrow(() -> new EntityNotFoundException("Hazard Report Not Found " + id)),
-                HazardReport::imagePath, "Hazard Report Image Not Found");
+        HazardReport hazardReport = hazardStatusHistoryRepo.findByReportId(id)
+                .orElseThrow(() -> new EntityNotFoundException("Hazard Report Not Found " + id)).getReport();
+
+        String imageUrl = "upload/hazardReport/" + hazardReport.getId() + "/" + hazardReport.getGambar();
+
+        return fetchImageReport(imageUrl, "Hazard Report Image Not Found");
     }
 
     @Override
     public ResponseEntity<?> imageForResolution(Long id) {
-        return fetchImage(() -> penyelesaianRepo.findById(id)
-                        .orElseThrow(() -> new EntityNotFoundException("Resolution Not Found " + id)),
-                Penyelesaian::imagePath, "Resolution Image Not Found");
+        Penyelesaian penyelesaian = penyelesaianRepo.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Penyelesaian Not Found " + id));
+
+        log.info("tampil penyelesaian {}", penyelesaian);
+
+        String imageUrl = "upload/resolution/" + penyelesaian.getId() + "/" + penyelesaian.getGambar();
+
+        return fetchImageReport(imageUrl, "Resolution Image Not Found");
     }
 
     @Override
@@ -528,8 +539,50 @@ public class SystemServiceImpl implements SystemService {
     }
 
     @Override
-    public ResponseEntity<Map<String, Object>> getDetailHistoryStatus(Long id) {
-        return getDetailData(id, hazardStatusHistoryRepo);
+    public ResponseEntity<Map<String, Object>> getDetailHistoryStatus(Long id, HttpServletRequest request) {
+        // Check id
+        HazardStatusHistory hazardReport = hazardStatusHistoryRepo.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Hazard Report Not Found " + id));
+
+        // Penyelesaian DTO
+        ResponsePenyelesaianDTO penyelesaianDTO = null;
+        Penyelesaian penyelesaian = hazardReport.getReport().getPenyelesaian();
+        if (penyelesaian != null){
+            penyelesaianDTO = new ResponsePenyelesaianDTO();
+            penyelesaianDTO.setNamaPenyelesaian(hazardReport.getReport().getPenyelesaian().getNamaPenyelesaian());
+            penyelesaianDTO.setDepartment(hazardReport.getReport().getPenyelesaian().getDepartment());
+            penyelesaianDTO.setLinkGambar(buildLinkImage(request, hazardReport.getReport().getPenyelesaian().getId(), "api/resolutionImage/"));
+        }
+
+        // Map Hazard Report fields to DTO
+        ResponseHazardReportDTO resHazardReportDTO = new ResponseHazardReportDTO();
+        resHazardReportDTO.setId(hazardReport.getReport().getId());
+        resHazardReportDTO.setTitle(hazardReport.getReport().getTitle());
+        resHazardReportDTO.setNamaPelapor(hazardReport.getReport().getNamaPelapor());
+        resHazardReportDTO.setLokasi(hazardReport.getReport().getLokasi());
+        resHazardReportDTO.setDeskripsi(hazardReport.getReport().getDeskripsi());
+        resHazardReportDTO.setKategoriTemuan(hazardReport.getReport().getKategoriTemuan());
+        resHazardReportDTO.setDepartmentPelapor(hazardReport.getReport().getDepartmentPelapor());
+        resHazardReportDTO.setDepartmentPerbaikan(hazardReport.getReport().getDepartmentPerbaikan());
+        resHazardReportDTO.setPenyelesaian(penyelesaianDTO);
+        resHazardReportDTO.setTindakan(hazardReport.getReport().getTindakan());
+        resHazardReportDTO.setTanggalKejadian(hazardReport.getReport().getTanggalKejadian());
+        resHazardReportDTO.setLinkGambar(buildLinkImage(request, hazardReport.getReport().getId(), "api/gambar/"));
+
+        // HIstory Status
+        HistoryStatusDTO historyStatusDTO = new HistoryStatusDTO();
+        historyStatusDTO.setId(hazardReport.getId());
+        historyStatusDTO.setReport(resHazardReportDTO);
+        historyStatusDTO.setStatus(hazardReport.getStatus());
+        historyStatusDTO.setAlasan(hazardReport.getAlasan());
+        historyStatusDTO.setUpdateBy(hazardReport.getUpdateBy());
+        historyStatusDTO.setUpdateDate(hazardReport.getUpdateDate());
+
+        // Create the response map
+        Map<String, Object> response = new HashMap<>();
+        response.put("httpStatus", HttpStatus.OK.value());
+        response.put("data", historyStatusDTO);
+        return ResponseEntity.ok(response);
     }
 
     @Override
@@ -546,20 +599,20 @@ public class SystemServiceImpl implements SystemService {
 
     @Override
     public ResponseEntity<?> editHistoryStatus(Long id, HazardStatusDTO hazardStatusDTO) {
-
+        // Cek id hazard report
         HazardReport hazardReport = hazardReportRepo.findById(hazardStatusDTO.getReportId())
                 .orElseThrow(() -> new EntityNotFoundException("Report Not Found " + hazardStatusDTO.getReportId()));
-
+        // Cek id Status
         Status status = statusRepo.findById(hazardStatusDTO.getStatusId())
                 .orElseThrow(() -> new EntityNotFoundException("Status Not Found " + hazardStatusDTO.getStatusId()));
-
+        // Cek id History Hazard
         HazardStatusHistory history = hazardStatusHistoryRepo.findByReportId(hazardStatusDTO.getReportId())
                 .orElse(new HazardStatusHistory());
 
         history.setReport(hazardReport);
         history.setStatus(status);
 
-        Integer reject = 3;
+        // Cek when status reject, alasan required
         if (status.getId() != null && status.getId().equals(reject)) {
             if (!StringUtils.hasText(hazardStatusDTO.getAlasan())) {
                 ErrorResponse errorRes = new ErrorResponse(HttpStatus.BAD_REQUEST.value(), "Alasan is required when status is Rejected");
@@ -573,47 +626,50 @@ public class SystemServiceImpl implements SystemService {
         history.setUpdateBy(hazardStatusDTO.getUpdateBy());
         history.setUpdateDate(LocalDateTime.now().atZone(ZoneId.of("Asia/Jakarta")).toLocalDateTime());
 
+        // Update Status Hazard Report
         hazardStatusHistoryRepo.save(history);
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("httpStatus", HttpStatus.OK.value());
-        response.put("message", "Status Hazard Report updated successfully!");
-        return ResponseEntity.ok(response);
+        return saveEntityWithMessage("Status Hazard Report updated successfully!");
     }
 
     @Override
     public ResponseEntity<?> deleteHistoryStatus(Long id) {
-        Optional<HazardStatusHistory> reportOptional = hazardStatusHistoryRepo.findById(id);
-        if (reportOptional.isPresent()) {
-            HazardStatusHistory hazardStatusHistory = reportOptional.get();
+        // fetch hazard report status id
+        HazardStatusHistory hazardStatusHistory = hazardStatusHistoryRepo.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Hazard Report Not Found " + id));
 
-            String fileName = hazardStatusHistory.getReport().getGambar();
-            String filePath = path + "uploads/" + hazardStatusHistory.getId();
-            File fileToDelete = new File(filePath, fileName);
+        HazardReport hazardReport = hazardStatusHistory.getReport();
 
-            if (fileToDelete.exists() && !fileToDelete.delete()) {
-                handleExceptionByMessage("Failed to delete file " + fileName);
-            }
+        // Define tje file paths
+        String fileName = hazardReport.getGambar();
+        String filePath =  "upload/hazardReport/" + hazardReport.getId();
+        File fileToDelete = new File(filePath, fileName);
 
-            File directory = new File(filePath);
-            if (directory.exists() && directory.isDirectory()) {
-                try {
-                    FileUtils.deleteDirectory(directory);
-                } catch (IOException e){
-                    handleExceptionByMessage("Error while deleting file " + e.getMessage());
-                }
-            }
-
-            hazardStatusHistoryRepo.delete(hazardStatusHistory);
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("httpStatus", HttpStatus.OK.value());
-            response.put("message", "Delete Report Berhasil");
-
-            return ResponseEntity.ok(response);
-        } else {
-            return handleExceptionByMessage("Report Not Found " + id);
+        // Delete the specific file if it exists
+        if (fileToDelete.exists() && !fileToDelete.delete()) {
+            return handleExceptionByMessage("Failed to delete the file: " + fileToDelete.getPath());
         }
+
+        // Delete the entire directory if it exists
+        File directory = new File(filePath);
+        if (directory.exists() && directory.isDirectory()) {
+            try {
+                FileUtils.deleteDirectory(directory);
+            } catch (IOException e) {
+                return handleException(e);
+            }
+        }
+        // Delete hazard status history with this hazard report
+        hazardStatusHistoryRepo.delete(hazardStatusHistory);
+
+        // Delete the hazard report from the repository
+        hazardReportRepo.delete(hazardReport);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("httpStatus", HttpStatus.OK.value());
+        response.put("message", "Delete Berhasil");
+
+        return ResponseEntity.ok(response);
     }
 
     @Override
@@ -630,26 +686,40 @@ public class SystemServiceImpl implements SystemService {
             Sheet sheet = workbook.createSheet("Hazard Report");
 
             Row headerRow = sheet.createRow(0);
-            headerRow.createCell(0).setCellValue("ID");
-            headerRow.createCell(1).setCellValue("Title");
-            headerRow.createCell(2).setCellValue("Nama Pelapor");
-            headerRow.createCell(3).setCellValue("Lokasi");
-            headerRow.createCell(4).setCellValue("Status");
-            headerRow.createCell(5).setCellValue("Tindakan");
-            headerRow.createCell(6).setCellValue("Update By");
-            headerRow.createCell(7).setCellValue("Update Date");
+            headerRow.createCell(0).setCellValue("No");
+            headerRow.createCell(1).setCellValue("Tanggal");
+            headerRow.createCell(2).setCellValue("Judul");
+            headerRow.createCell(3).setCellValue("Nama");
+            headerRow.createCell(4).setCellValue("Department");
+            headerRow.createCell(5).setCellValue("Perusahaan");
+            headerRow.createCell(6).setCellValue("Deskripsi");
+            headerRow.createCell(7).setCellValue("Lokasi");
+            headerRow.createCell(8).setCellValue("Jenis Temuan");
+            headerRow.createCell(9).setCellValue("Tindakan Perbaikan");
+            headerRow.createCell(10).setCellValue("Department Perbaikan");
+            headerRow.createCell(11).setCellValue("Perusahaan Pic");
+            headerRow.createCell(12).setCellValue("Status");
 
             int rowNum = 1;
             for (HazardStatusHistory report : data) {
-                Row row = sheet.createRow(rowNum++);
-                row.createCell(0).setCellValue(report.getId());
-                row.createCell(1).setCellValue(report.getReport().getTitle());
-                row.createCell(2).setCellValue(report.getReport().getNamaPelapor());
-                row.createCell(3).setCellValue(report.getReport().getLokasi());
-                row.createCell(4).setCellValue(report.getStatus().getNamaStatus());
-                row.createCell(5).setCellValue(report.getReport().getTindakan());
-                row.createCell(6).setCellValue(report.getUpdateBy());
-                row.createCell(7).setCellValue(report.getUpdateDate().toString());
+                Row row = sheet.createRow(rowNum);
+                row.createCell(0).setCellValue(rowNum);
+                if (report.getReport().getTanggalKejadian() != null){
+                    row.createCell(1).setCellValue(ExcelDateConverter.formatDate(report.getReport().getTanggalKejadian()));
+                }
+                row.createCell(2).setCellValue(report.getReport().getTitle());
+                row.createCell(3).setCellValue(report.getReport().getNamaPelapor());
+                row.createCell(4).setCellValue(report.getReport().getDepartmentPelapor().getNamaDepartment());
+                row.createCell(5).setCellValue(report.getReport().getDepartmentPelapor().getCompany().getNamaCompany());
+                row.createCell(6).setCellValue(report.getReport().getDeskripsi());
+                row.createCell(7).setCellValue(report.getReport().getLokasi());
+                row.createCell(8).setCellValue(report.getReport().getKategoriTemuan().getKategoriTemuan());
+                row.createCell(9).setCellValue(report.getReport().getTindakan());
+                row.createCell(10).setCellValue(report.getReport().getDepartmentPerbaikan().getNamaDepartment());
+                row.createCell(11).setCellValue(report.getReport().getDepartmentPerbaikan().getCompany().getNamaCompany());
+                row.createCell(12).setCellValue(report.getStatus().getNamaStatus());
+
+                rowNum++;
             }
 
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
@@ -684,29 +754,35 @@ public class SystemServiceImpl implements SystemService {
         return getAllData(kategoriTemuanRepo.findAll());
     }
 
-    private <T> ResponseEntity<?> fetchImage(Supplier<T> entitySupplier, Function<T, String> imagePathFunction, String notFoundMessage) {
+    private ResponseEntity<?> fetchImageReport(String imagePath, String notFoundMessage) {
         try {
-            T entity = entitySupplier.get();
-            String imagePath = imagePathFunction.apply(entity);
-
-            log.info(imagePath);
-
+            // Check if the image path is null
             if (imagePath == null) {
                 return handleExceptionByMessage(notFoundMessage);
             }
 
-            ClassPathResource imageRes = new ClassPathResource(imagePath);
+            // Use FileSystemResource to access the image
+            FileSystemResource imageRes = new FileSystemResource(imagePath);
+
+            // Verify if the file exists
             if (!imageRes.exists()) {
                 return handleExceptionByMessage(notFoundMessage);
             }
 
+            // Read image bytes and return as response
             byte[] bytes = StreamUtils.copyToByteArray(imageRes.getInputStream());
             return ResponseEntity.ok()
                     .contentType(MediaType.IMAGE_JPEG)
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + imagePath + "\"")
                     .body(bytes);
         } catch (Exception e) {
             return handleException(e);
         }
+    }
+
+    private String buildLinkImage(HttpServletRequest request, Long id, String apiUrl) {
+        String baseUrl = request.getRequestURL().toString().replace(request.getRequestURI(), "");
+        return baseUrl + "/" + apiUrl + id;
     }
 
     public ResponseEntity<?> handleException(Exception e) {
