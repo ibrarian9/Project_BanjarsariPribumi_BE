@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 import java.util.Map;
 
 public interface SystemService {
@@ -19,7 +20,7 @@ public interface SystemService {
     ResponseEntity<Map<String, Object>> getAllInspection();
     ResponseEntity<Map<String, Object>> getInspectionQuestion(Long areakerjaId);
     ResponseEntity<Map<String, Object>> getDetailInspection(Long id);
-    ResponseEntity<?> addInspectionAnswer(InspectionRequestDTO requestDTO);
+    ResponseEntity<?> addInspectionAnswer(InspectionRequestDTO requestDTO, List<MultipartFile> gambarFiles);
     ResponseEntity<Map<String, Object>> getDetailInspectionAnswer(Long id);
     ResponseEntity<Map<String, Object>> getAllDailyInspection(String search);
     ResponseEntity<?> editStatusDailyInspection(Long id, DailyInspectionStatusDTO dailyInspectionStatusDTO);

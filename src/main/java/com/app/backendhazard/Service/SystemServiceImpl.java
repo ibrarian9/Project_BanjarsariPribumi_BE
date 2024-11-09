@@ -25,14 +25,14 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.FileCopyUtils;
 import org.springframework.util.StreamUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
@@ -218,10 +218,13 @@ public class SystemServiceImpl implements SystemService {
     @Transactional
     @Override
     public ResponseEntity<?> addInspectionAnswer(
-           InspectionRequestDTO requestDTO
+           InspectionRequestDTO requestDTO,
+           List<MultipartFile> gambarFiles
     ) {
         // Set Status to Open
         Long open = 1L;
+
+        log.info("data request DTO: {}", requestDTO);
 
         // Check id
         Status status = statusRepo.findById(open)
@@ -250,6 +253,8 @@ public class SystemServiceImpl implements SystemService {
 
         List<DetailDailyInspection> detailToSave = new ArrayList<>();
 
+        // to map image files to each answerDTO
+        int imageIndex = 0;
         // Process each AnswerDTO & Create Detail Daily Inspection records
         for (AnswerDTO answerDTO : requestDTO.getAnswerDTOList() ) {
             // Check id
@@ -260,7 +265,17 @@ public class SystemServiceImpl implements SystemService {
             InspectionAnswer answer = new InspectionAnswer();
             answer.setJawaban(answerDTO.getJawaban());
             answer.setCatatan(answerDTO.getCatatan());
-            answer.setGambar(answerDTO.getGambar());
+
+            // Check if image file
+            if (!gambarFiles.isEmpty() && imageIndex < gambarFiles.size()) {
+                MultipartFile imageFile = gambarFiles.get(imageIndex++);
+                try {
+                    String filePath = saveImageToFileSystem(imageFile, savedDailyInspection.getId());
+                    answer.setGambar(filePath);
+                } catch (IOException e) {
+                    return handleException(e);
+                }
+            }
 
             // save answer & directly use the saved instance
             InspectionAnswer savedAnswer = answerInspectionRepo.save(answer);
@@ -278,6 +293,20 @@ public class SystemServiceImpl implements SystemService {
         detailDailyInspectionRepo.saveAll(detailToSave);
 
         return saveEntityWithMessage("Answer added successfully");
+    }
+
+    private String saveImageToFileSystem(MultipartFile imageFile, Long id) throws IOException {
+        String uploadDir = "upload/dailyInspection/" + id + "/";
+        Files.createDirectories(Paths.get(uploadDir)); // Ensure directory exists
+        // Make file
+        String fileName = UUID.randomUUID() + ".jpg";
+        File file = new File(uploadDir, fileName);
+        // Write the file directly with FileCopyUtils
+        try (InputStream in = imageFile.getInputStream(); OutputStream out = new FileOutputStream(file)) {
+            FileCopyUtils.copy(in, out);
+        }
+        // Return the path to save in the database
+        return fileName;
     }
 
     @Override

@@ -8,6 +8,7 @@ public class RegisterDTO {
     private String nik;
     private String email;
     private String password;
+    private String confirmPassword;
     private Long statusKaryawanId;
     private Long roleId;
 }

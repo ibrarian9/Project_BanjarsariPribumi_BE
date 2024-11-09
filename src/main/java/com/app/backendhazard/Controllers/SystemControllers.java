@@ -12,6 +12,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
+
 @AllArgsConstructor
 @RestController
 @RequestMapping("/api")
@@ -110,10 +112,13 @@ public class SystemControllers {
         }
     }
 
-    @PostMapping(path = "/inspectionAnswer/add", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> postAnswer(@RequestBody InspectionRequestDTO requestDTO) {
+    @PostMapping(path = "/inspectionAnswer/add", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> postAnswer(
+            @RequestPart("requestDTO") InspectionRequestDTO requestDTO,
+            @RequestParam("image") List<MultipartFile> imageFiles
+    ) {
         try {
-            return systemService.addInspectionAnswer(requestDTO);
+            return systemService.addInspectionAnswer(requestDTO, imageFiles);
         } catch (Exception e) {
             return handleException(e);
         }
