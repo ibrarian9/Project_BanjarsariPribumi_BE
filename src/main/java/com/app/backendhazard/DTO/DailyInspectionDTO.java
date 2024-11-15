@@ -6,8 +6,8 @@ import lombok.Data;
 public class DailyInspectionDTO {
     private String namaPengawas;
     private Long departmentPengawasId;
-    private String tanggalInspeksi;
     private Long shiftKerjaId;
     private Long areaKerjaId;
+    private Long statusLaporanId;
     private String keteranganAreaKerja;
 }

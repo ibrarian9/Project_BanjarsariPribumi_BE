@@ -3,7 +3,7 @@ package com.app.backendhazard.Controllers;
 import com.app.backendhazard.DTO.*;
 import com.app.backendhazard.Models.Pencapaian;
 import com.app.backendhazard.Response.ErrorResponse;
-import com.app.backendhazard.Service.SystemService;
+import com.app.backendhazard.Service.*;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,11 +21,17 @@ public class SystemControllers {
 
     private final long twoMb = 2 * 1024 * 1024;
     private final SystemService systemService;
+    private final CompanyService companyService;
+    private final SafetyTalkService safetyTalkService;
+    private final PencapaianService pencapaianService;
+    private final DepartmentService departmentService;
+    private final HazardReportService hazardReportService;
+    private final DailyInspectionService dailyInspectionService;
 
     @GetMapping(path = "/company", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getAllCompany() {
         try {
-            return systemService.getAllCompany();
+            return companyService.getAllCompany();
         } catch (Exception e){
             return handleException(e);
         }
@@ -34,7 +40,7 @@ public class SystemControllers {
     @GetMapping(path = "/company/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getDetailCompany(@PathVariable long id) {
         try {
-            return systemService.getDetailCompany(id);
+            return companyService.getDetailCompany(id);
         } catch (Exception e){
             return handleException(e);
         }
@@ -43,7 +49,7 @@ public class SystemControllers {
     @PostMapping(path = "/company/add", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> addCompany(@RequestBody CompanyDTO company) {
         try {
-            return systemService.addCompany(company);
+            return companyService.addCompany(company);
         } catch (Exception e) {
             return handleException(e);
         }
@@ -52,7 +58,7 @@ public class SystemControllers {
     @GetMapping(path = "/departments", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getAllDepartment(){
         try {
-            return systemService.getAllDepartment();
+            return departmentService.getAllDepartment();
         } catch (Exception e) {
             return handleException(e);
         }
@@ -61,7 +67,7 @@ public class SystemControllers {
     @GetMapping(path = "/departments/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getDetailDepartment(@PathVariable long id){
         try {
-            return systemService.getDetailDepartment(id);
+            return departmentService.getDetailDepartment(id);
         } catch (Exception e){
             return handleException(e);
         }
@@ -70,7 +76,7 @@ public class SystemControllers {
     @PostMapping(path = "/departments/add", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> addDepartments(@RequestBody DepartmentsDTO department){
         try {
-            return systemService.addDepartment(department);
+            return departmentService.addDepartment(department);
         } catch (Exception e){
             return handleException(e);
         }
@@ -87,7 +93,7 @@ public class SystemControllers {
         }
 
         try {
-            return systemService.addHazardReport(hazardReport, gambar);
+            return hazardReportService.addHazardReport(hazardReport, gambar);
         } catch (Exception e){
             return handleException(e);
         }
@@ -95,18 +101,18 @@ public class SystemControllers {
 
     @GetMapping(path = "/gambar/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> gambarById(@PathVariable Long id) {
-        return systemService.imageForHazardReport(id);
+        return hazardReportService.imageForHazardReport(id);
     }
 
     @GetMapping(path = "/resolutionImage/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> resolutionImage(@PathVariable Long id) {
-        return systemService.imageForResolution(id);
+        return pencapaianService.imageForResolution(id);
     }
 
     @GetMapping(path = "/inspectionQuestion/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getQuestions(@PathVariable Long id) {
         try {
-            return systemService.getInspectionQuestion(id);
+            return dailyInspectionService.getInspectionQuestion(id);
         } catch (Exception e) {
             return handleException(e);
         }
@@ -118,7 +124,7 @@ public class SystemControllers {
             @RequestParam("image") List<MultipartFile> imageFiles
     ) {
         try {
-            return systemService.addInspectionAnswer(requestDTO, imageFiles);
+            return dailyInspectionService.addInspectionAnswer(requestDTO, imageFiles);
         } catch (Exception e) {
             return handleException(e);
         }
@@ -127,7 +133,7 @@ public class SystemControllers {
     @PutMapping(path = "/inspection/status/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editStatusDailyInspection(@PathVariable Long id,@RequestBody DailyInspectionStatusDTO dailyInspectionStatusDTO) {
         try {
-            return systemService.editStatusDailyInspection(id, dailyInspectionStatusDTO);
+            return dailyInspectionService.editStatusDailyInspection(id, dailyInspectionStatusDTO);
         } catch (Exception e) {
             return handleException(e);
         }
@@ -136,7 +142,7 @@ public class SystemControllers {
     @PostMapping(path = "/detailDailyInspection", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postDetailDaily(@RequestBody DetailInspectionDTO detailInspectionDTO) {
         try {
-            return systemService.addDetailDailyInspection(detailInspectionDTO);
+            return dailyInspectionService.addDetailDailyInspection(detailInspectionDTO);
         } catch (Exception e) {
             return handleException(e);
         }
@@ -147,7 +153,7 @@ public class SystemControllers {
             @RequestParam(value = "q", required = false) String search
     ) {
         try {
-            return systemService.getAllDailyInspection(search);
+            return dailyInspectionService.getAllDailyInspection(search);
         } catch (Exception e){
             return handleException(e);
         }
@@ -156,7 +162,7 @@ public class SystemControllers {
     @GetMapping(path = "/dailyInspection/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getDetailDailyInspection(@PathVariable Long id) {
         try {
-            return systemService.getDetailInspectionAnswer(id);
+            return dailyInspectionService.getDetailInspectionAnswer(id);
         } catch (Exception e){
             return handleException(e);
         }
@@ -165,7 +171,7 @@ public class SystemControllers {
     @PostMapping(path = "/pencapaian", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> postPencapaian(@RequestBody Pencapaian pencapaian){
         try {
-            return systemService.addPencapaian(pencapaian);
+            return pencapaianService.addPencapaian(pencapaian);
         } catch (Exception e){
             return handleException(e);
         }
@@ -183,7 +189,7 @@ public class SystemControllers {
         }
 
         try {
-            return systemService.addPenyelesaian(id, penyelesaian, gambar);
+            return pencapaianService.addPenyelesaian(id, penyelesaian, gambar);
         } catch (Exception e){
             return handleException(e);
         }
@@ -192,7 +198,7 @@ public class SystemControllers {
     @GetMapping(path = "/safetyTalk", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getSafetyTalk(){
         try {
-            return systemService.getAllSafetyTalk();
+            return safetyTalkService.getAllSafetyTalk();
         } catch (Exception e){
             return handleException(e);
         }
@@ -201,7 +207,7 @@ public class SystemControllers {
     @GetMapping(path = "/safetyTalk/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getDetailSafetyTalk(@PathVariable Long id){
         try {
-            return systemService.getDetailSafetyTalk(id);
+            return safetyTalkService.getDetailSafetyTalk(id);
         } catch (Exception e){
             return handleException(e);
         }
@@ -210,7 +216,7 @@ public class SystemControllers {
     @PostMapping(path = "/safetyTalk/add", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> addSafetyTalk(@RequestBody SafetyTalkDTO safetyTalk){
         try {
-            return systemService.addSafetyTalk(safetyTalk);
+            return safetyTalkService.addSafetyTalk(safetyTalk);
         } catch (Exception e){
             return handleException(e);
         }
@@ -220,15 +226,6 @@ public class SystemControllers {
     public ResponseEntity<?> getStatusStaff(){
         try {
             return systemService.getAllStatusKaryawan();
-        } catch (Exception e){
-            return handleException(e);
-        }
-    }
-
-    @GetMapping(path = "/statusStaff/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getDetailStatusStaff(@PathVariable Long id){
-        try {
-            return systemService.getDetailStatusKaryawan(id);
         } catch (Exception e){
             return handleException(e);
         }
@@ -246,7 +243,7 @@ public class SystemControllers {
     @GetMapping(path = "/historyStatus", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> searchStatusHistory(@RequestParam(value = "q", required = false) String search){
         try {
-            return systemService.searchAllHistoryStatus(search);
+            return hazardReportService.searchAllHistoryStatus(search);
         } catch (Exception e){
             return handleException(e);
         }
@@ -255,7 +252,7 @@ public class SystemControllers {
     @GetMapping(path = "/historyStatus/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getDetailHazardStatusHistory(@PathVariable Long id, HttpServletRequest request){
         try {
-            return systemService.getDetailHistoryStatus(id, request);
+            return hazardReportService.getDetailHistoryStatus(id, request);
         } catch (Exception e){
             return handleException(e);
         }
@@ -264,7 +261,7 @@ public class SystemControllers {
     @PutMapping(path = "/historyStatus/{id}", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> editHazardStatusHistory(@PathVariable Long id, @RequestBody HazardStatusDTO hazardStatusDTO){
         try {
-            return systemService.editHistoryStatus(id, hazardStatusDTO);
+            return hazardReportService.editHistoryStatus(id, hazardStatusDTO);
         } catch (Exception e){
             return handleException(e);
         }
@@ -273,7 +270,7 @@ public class SystemControllers {
     @DeleteMapping(path = "/historyStatus/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> deleteHazardStatusHistory(@PathVariable Long id){
         try {
-            return systemService.deleteHistoryStatus(id);
+            return hazardReportService.deleteHistoryStatus(id);
         } catch (Exception e){
             return handleException(e);
         }
@@ -284,7 +281,7 @@ public class SystemControllers {
             @RequestParam(value = "dept", required = false) String dept,
             @RequestParam(value = "status", required = false) String status){
         try {
-            return systemService.filterAllHistoryStatus(dept, status);
+            return hazardReportService.filterAllHistoryStatus(dept, status);
         } catch (Exception e){
             return handleException(e);
         }
@@ -292,7 +289,7 @@ public class SystemControllers {
 
     @GetMapping(value = "historyStatus/export")
     public ResponseEntity<?> exportStatusHistory(){
-        return systemService.exportToExcel();
+        return hazardReportService.exportToExcel();
     }
 
     @GetMapping(value = "/users", produces = MediaType.APPLICATION_JSON_VALUE)

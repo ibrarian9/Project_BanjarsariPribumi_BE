@@ -11,5 +11,6 @@ public class HazardReportDTO {
     private String deskripsi;
     private Long departmentPelaporId;
     private Long departmentPerbaikanId;
+    private Long statusLaporanId;
     private String tindakan;
 }

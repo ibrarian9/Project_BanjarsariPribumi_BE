@@ -4,6 +4,7 @@ import com.app.backendhazard.DTO.QuestionAnswerDTO;
 import jakarta.persistence.*;
 import lombok.Data;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
@@ -16,7 +17,7 @@ public class DailyInspection {
     @Column(name = "nama_pengawas")
     private String namaPengawas;
     @Column(name = "tanggal_inspeksi")
-    private String tanggalInspeksi;
+    private LocalDateTime tanggalInspeksi;
     @ManyToOne
     @JoinColumn(name = "department_pengawas_id", referencedColumnName = "id")
     private Department departmentPengawas;

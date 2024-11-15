@@ -16,7 +16,6 @@ public interface DetailDailyInspectionRepository extends JpaRepository<DetailDai
             "JOIN d.inspectionQuestion iq " +
             "WHERE :search IS NULL OR " +
             "LOWER(di.namaPengawas) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-            "LOWER(di.tanggalInspeksi) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
             "LOWER(iq.question) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
             "LOWER(ia.catatan) LIKE LOWER(CONCAT('%', :search, '%'))")
     List<DetailDailyInspection> searchInspections(@Param("search") String search);
