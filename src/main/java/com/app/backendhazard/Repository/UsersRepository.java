@@ -1,6 +1,7 @@
 package com.app.backendhazard.Repository;
 
 import com.app.backendhazard.Models.Users;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

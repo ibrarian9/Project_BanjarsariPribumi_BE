@@ -39,6 +39,7 @@ public interface SystemService {
     ResponseEntity<Map<String, Object>> searchAllHistoryStatus(String search);
     ResponseEntity<Map<String, Object>> filterAllHistoryStatus(String dept, String status);
     ResponseEntity<?> editHistoryStatus(Long id, HazardStatusDTO hazardStatusDTO);
+    ResponseEntity<?> editEmailPasswordUser(Long id, UpdateUserDTO updateUserDTO);
     ResponseEntity<?> deleteHistoryStatus(Long id);
     ResponseEntity<Map<String, Object>> getAllUser();
     ResponseEntity<?> exportToExcel();

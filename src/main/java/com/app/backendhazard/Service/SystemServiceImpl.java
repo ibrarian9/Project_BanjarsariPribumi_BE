@@ -23,6 +23,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.FileCopyUtils;
@@ -63,6 +64,8 @@ public class SystemServiceImpl implements SystemService {
     private final AnswerInspectionRepository answerInspectionRepo;
     private final KategoriTemuanRepository kategoriTemuanRepo;
     private final Integer reject = 3;
+    private final UsersRepository usersRepository;
+    private final PasswordEncoder passwordEncoder;
 
     private <T> ResponseEntity<Map<String, Object>> getAllData(List<T> list) {
         Map<String, Object> response = new HashMap<>();
@@ -659,6 +662,24 @@ public class SystemServiceImpl implements SystemService {
         hazardStatusHistoryRepo.save(history);
 
         return saveEntityWithMessage("Status Hazard Report updated successfully!");
+    }
+
+    @Override
+    public ResponseEntity<?> editEmailPasswordUser(Long id, UpdateUserDTO updateUserDTO) {
+        Users user = usersRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("User Not Found " + id));
+        //update email dan password
+        if (updateUserDTO.getEmail() != null) {
+            user.setEmail(updateUserDTO.getEmail());
+        }
+        if (updateUserDTO.getPassword() != null) {
+            user.setPassword(passwordEncoder.encode(updateUserDTO.getPassword()));
+        }
+        usersRepository.save(user);
+        Map<String, Object> response = new HashMap<>();
+        response.put("httpStatus", HttpStatus.OK.value());
+        response.put("data", user);
+        return ResponseEntity.ok(response);
     }
 
     @Override

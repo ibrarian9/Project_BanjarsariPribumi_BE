@@ -322,6 +322,15 @@ public class SystemControllers {
         }
     }
 
+    @PutMapping(value = "/update/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> updateUser(@PathVariable Long id, @RequestBody UpdateUserDTO updateUserDTO) {
+        try {
+            return systemService.editEmailPasswordUser(id, updateUserDTO);
+        } catch (Exception e) {
+            return handleException(e);
+        }
+    }
+
     @GetMapping(value = "/workArea", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getAllWorkArea() {
         try {
