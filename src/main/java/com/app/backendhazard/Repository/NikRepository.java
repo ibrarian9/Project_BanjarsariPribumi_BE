@@ -6,5 +6,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 
 public interface NikRepository extends JpaRepository<Nik, Long> {
-    Optional<Nik> findByNik(String nik);
+    Optional<Nik> findNikByDataNik(String nik);
 }

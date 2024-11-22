@@ -85,7 +85,7 @@ public class UsersServiceImpl implements UsersService {
         }
 
         // Confirm if the provided NIK exists in the database
-        Optional<Nik> nikEntity = nikRepository.findByNik(registerDTO.getNik());
+        Optional<Nik> nikEntity = nikRepository.findNikByDataNik(registerDTO.getNik());
         if (nikEntity.isEmpty()) {
             throw new IllegalArgumentException("NIK does not exist in the database");
         }
@@ -101,6 +101,7 @@ public class UsersServiceImpl implements UsersService {
         users.setUsername(registerDTO.getUsername());
         users.setNik(registerDTO.getNik());
         users.setEmail(registerDTO.getEmail());
+        users.setStatusAktif(1);
         users.setPassword(passwordEncoder.encode(registerDTO.getPassword()));
         users.setStatusKaryawan(statusKaryawan);
         users.setRole(roles);

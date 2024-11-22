@@ -26,19 +26,12 @@ public class Users {
     @JsonIgnore
     @Column(name = "password", length = 120, nullable = false)
     private String password;
+    @Column(name = "status_aktif", length = 1)
+    private int statusAktif;
     @ManyToOne
     @JoinColumn(name = "status_karyawan_id", referencedColumnName = "id")
     private StatusKaryawan statusKaryawan;
     @ManyToOne
     @JoinColumn(name = "role_id", referencedColumnName = "id")
     private Roles role;
-
-    public Users(String username, String nik, String email, String password, StatusKaryawan statusKaryawan, Roles role) {
-        this.username = username;
-        this.nik = nik;
-        this.email = email;
-        this.password = password;
-        this.statusKaryawan = statusKaryawan;
-        this.role = role;
-    }
 }
