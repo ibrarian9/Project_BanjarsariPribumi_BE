@@ -1,13 +1,17 @@
 package com.app.backendhazard.Service;
 
 import com.app.backendhazard.DTO.RegisterDTO;
+import com.app.backendhazard.DTO.UpdateUserDTO;
+import com.app.backendhazard.Models.Nik;
 import com.app.backendhazard.Models.Roles;
 import com.app.backendhazard.Models.StatusKaryawan;
 import com.app.backendhazard.Models.Users;
+import com.app.backendhazard.Repository.NikRepository;
 import com.app.backendhazard.Repository.RoleRepository;
 import com.app.backendhazard.Repository.StatusKaryawanRepository;
 import com.app.backendhazard.Repository.UsersRepository;
 import com.app.backendhazard.Response.LoginResponse;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.AllArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.http.HttpStatus;
@@ -19,6 +23,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @AllArgsConstructor
@@ -29,6 +34,35 @@ public class UsersServiceImpl implements UsersService {
     private final StatusKaryawanRepository statusKaryawanRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final ResponseHelperService responseHelperService;
+    private final NikRepository nikRepository;
+
+    @Override
+    public ResponseEntity<?> updateProfile(Long id, UpdateUserDTO updateUserDTO) {
+        Users users = usersRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("User not found with ID: " + id));
+
+        // Update username if provided
+        if (updateUserDTO.getUsername() != null && !updateUserDTO.getUsername().isEmpty()) {
+            users.setUsername(updateUserDTO.getUsername());
+        }
+
+        // Update email if provided and not duplicate
+        if (updateUserDTO.getEmail() != null && !updateUserDTO.getEmail().isEmpty()) {
+            if (!users.getEmail().equals(updateUserDTO.getEmail()) && usersRepository.existsByEmail(updateUserDTO.getEmail())) {
+                throw new IllegalArgumentException("Email is already in use: " + updateUserDTO.getEmail());
+            }
+            users.setEmail(updateUserDTO.getEmail());
+        }
+
+        // Update password if provided
+        if (updateUserDTO.getPassword() != null && !updateUserDTO.getPassword().isEmpty()) {
+            users.setPassword(passwordEncoder.encode(updateUserDTO.getPassword()));
+        }
+
+        usersRepository.save(users);
+        return responseHelperService.saveEntityWithMessage("Update Profile Berhasil!");
+    }
 
     @Override
     public ResponseEntity<?> login(Authentication authentication) {
@@ -48,6 +82,12 @@ public class UsersServiceImpl implements UsersService {
 
         if (usersRepository.findByUsernameOrEmail(registerDTO.getUsername(), registerDTO.getEmail()).isPresent()) {
             throw new IllegalArgumentException("Email already exists");
+        }
+
+        // Confirm if the provided NIK exists in the database
+        Optional<Nik> nikEntity = nikRepository.findByNik(registerDTO.getNik());
+        if (nikEntity.isEmpty()) {
+            throw new IllegalArgumentException("NIK does not exist in the database");
         }
 
         StatusKaryawan statusKaryawan = statusKaryawanRepository.findById(registerDTO.getStatusKaryawanId())

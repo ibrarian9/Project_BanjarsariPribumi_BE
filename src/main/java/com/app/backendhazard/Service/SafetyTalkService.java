@@ -9,4 +9,5 @@ public interface SafetyTalkService {
     ResponseEntity<Map<String, Object>> getAllSafetyTalk();
     ResponseEntity<Map<String, Object>> getDetailSafetyTalk(Long id);
     ResponseEntity<Map<String, Object>> addSafetyTalk(SafetyTalkDTO safetyTalk);
+    ResponseEntity<?> exportToExcel();
 }

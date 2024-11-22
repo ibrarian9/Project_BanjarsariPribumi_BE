@@ -5,7 +5,10 @@ import com.app.backendhazard.Models.*;
 import com.app.backendhazard.Repository.*;
 import com.app.backendhazard.Response.ErrorResponse;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.AllArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -29,6 +32,7 @@ import java.util.stream.Collectors;
 @AllArgsConstructor
 public class DailyInspectionServiceImpl implements DailyInspectionService {
 
+    private static final Logger log = LoggerFactory.getLogger(DailyInspectionServiceImpl.class);
     private final DailyInspectionRepository dailyInspectionRepo;
     private final DetailDailyInspectionRepository detailDailyInspectionRepo;
     private final StatusRepository statusRepo;
@@ -133,7 +137,7 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
     }
 
     @Override
-    public ResponseEntity<Map<String, Object>> getDetailInspectionAnswer(Long id) {
+    public ResponseEntity<Map<String, Object>> getDetailInspectionAnswer(Long id, HttpServletRequest request) {
 
         DailyInspection dailyInspection = dailyInspectionRepo.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Daily Inspection Not Found " + id));
@@ -149,6 +153,9 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
             DetailAnswerDTO answerDTO = new DetailAnswerDTO();
             answerDTO.setJawaban(detail.getInspectionAnswer().getJawaban());
             answerDTO.setCatatan(detail.getInspectionAnswer().getCatatan());
+            answerDTO.setImageLink(BuildLinkImage(request, id, detail.getInspectionAnswer().getId()));
+
+            log.info("nama fileee : {}", BuildLinkImage(request, id, detail.getInspectionAnswer().getId()));
 
             dto.setAnswerDetail(answerDTO);
             return dto;
@@ -162,6 +169,11 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
         responseDTO.setDailyInspection(dailyInspection);
 
         return responseHelperService.getAllDataDTO(responseDTO);
+    }
+
+    private String BuildLinkImage(HttpServletRequest request, Long dailyInspectionId, Long id) {
+        String baseUrl = request.getRequestURL().toString().replace(request.getRequestURI(), "");
+        return baseUrl + "/api/imageDailyInspection/" + dailyInspectionId + "/" + id;
     }
 
     @Override
@@ -255,6 +267,16 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
 
         detailDailyInspectionRepo.save(detailDailyInspection);
         return responseHelperService.saveEntityWithMessage("Detail Daily Inspection added successfully");
+    }
+
+    @Override
+    public ResponseEntity<?> imageForInspection(Long dailyInspectionId, Long id) {
+        InspectionAnswer inspectionAnswer = answerInspectionRepo.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Inspection Answer Not Found " + id));
+
+        String imageUrl = "upload/dailyInspection/" + dailyInspectionId + "/" + inspectionAnswer.getGambar();
+
+        return responseHelperService.fetchImageReport(imageUrl, "Daily Inspection Image Not Found");
     }
 
 }

@@ -20,6 +20,8 @@ public class SafetyTalk {
     private Users user;
     @Column(name = "pencapaian", length = 2)
     private Long attaintmentNumber;
+    @Column(name = "target_safety_talk", length = 2)
+    private Long targetSafetyTalk;
     @Column(name = "tanggal")
     private LocalDateTime tanggal;
 }

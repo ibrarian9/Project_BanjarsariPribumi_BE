@@ -21,6 +21,7 @@ public class SystemControllers {
 
     private final long twoMb = 2 * 1024 * 1024;
     private final SystemService systemService;
+    private final UsersService usersService;
     private final CompanyService companyService;
     private final SafetyTalkService safetyTalkService;
     private final PencapaianService pencapaianService;
@@ -81,7 +82,6 @@ public class SystemControllers {
             return handleException(e);
         }
     }
-
 
     @PostMapping(path = "/hazardReport/add", produces = MediaType.APPLICATION_JSON_VALUE,
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -160,12 +160,17 @@ public class SystemControllers {
     }
 
     @GetMapping(path = "/dailyInspection/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getDetailDailyInspection(@PathVariable Long id) {
+    public ResponseEntity<?> getDetailDailyInspection(@PathVariable Long id, HttpServletRequest request) {
         try {
-            return dailyInspectionService.getDetailInspectionAnswer(id);
+            return dailyInspectionService.getDetailInspectionAnswer(id, request);
         } catch (Exception e){
             return handleException(e);
         }
+    }
+
+    @GetMapping(path = "/imageDailyInspection/{dailyInspectionId}/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> inpectionImage(@PathVariable Long dailyInspectionId, @PathVariable Long id) {
+        return dailyInspectionService.imageForInspection(dailyInspectionId, id);
     }
 
     @PostMapping(path = "/pencapaian", consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -220,6 +225,11 @@ public class SystemControllers {
         } catch (Exception e){
             return handleException(e);
         }
+    }
+
+    @GetMapping(value = "/safetyTalk/export")
+    public ResponseEntity<?> exportSafetyTalk(){
+        return safetyTalkService.exportToExcel();
     }
 
     @GetMapping(path = "/statusStaff", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -296,6 +306,15 @@ public class SystemControllers {
     public ResponseEntity<?> getAllUsers(){
         try {
             return systemService.getAllUser();
+        } catch (Exception e){
+            return handleException(e);
+        }
+    }
+
+    @PutMapping(value = "/users/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> updateUsers(@PathVariable Long id, @RequestBody UpdateUserDTO updateUserDTO) {
+        try {
+            return usersService.updateProfile(id, updateUserDTO);
         } catch (Exception e){
             return handleException(e);
         }

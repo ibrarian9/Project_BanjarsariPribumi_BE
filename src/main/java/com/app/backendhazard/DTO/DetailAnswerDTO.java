@@ -6,4 +6,5 @@ import lombok.Data;
 public class DetailAnswerDTO {
     private boolean jawaban;
     private String catatan;
+    private String imageLink;
 }
