@@ -78,6 +78,11 @@ public class UsersServiceImpl implements UsersService {
     }
 
     @Override
+    public ResponseEntity<Map<String, Object>> getDetailUser(Long id) {
+        return responseHelperService.getDetailData(id, usersRepository);
+    }
+
+    @Override
     public ResponseEntity<Map<String, Object>> registerUser(RegisterDTO registerDTO) {
 
         if (usersRepository.findByUsernameOrEmail(registerDTO.getUsername(), registerDTO.getEmail()).isPresent()) {
@@ -118,6 +123,7 @@ public class UsersServiceImpl implements UsersService {
         UserDetailsImpl userDetails = (UserDetailsImpl) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         // Set Login Response
         LoginResponse loginResponse = new LoginResponse();
+        loginResponse.setId(userDetails.getUser().getId());
         loginResponse.setToken(jwt);
         loginResponse.setUsername(userDetails.getUsername());
         loginResponse.setNik(userDetails.getUser().getNik());

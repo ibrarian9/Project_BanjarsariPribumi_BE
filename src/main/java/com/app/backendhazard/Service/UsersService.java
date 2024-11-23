@@ -11,5 +11,6 @@ import java.util.Map;
 public interface UsersService {
     ResponseEntity<?> updateProfile(Long id, UpdateUserDTO updateUserDTO);
     ResponseEntity<?> login(Authentication authentication);
+    ResponseEntity<Map<String, Object>> getDetailUser(Long id);
     ResponseEntity<Map<String, Object>> registerUser(RegisterDTO registerDTO);
 }

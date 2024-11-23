@@ -311,6 +311,15 @@ public class SystemControllers {
         }
     }
 
+    @GetMapping(value = "/users/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getDetailUsers(@PathVariable Long id){
+        try {
+            return usersService.getDetailUser(id);
+        } catch (Exception e){
+            return handleException(e);
+        }
+    }
+
     @PutMapping(value = "/users/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> updateUsers(@PathVariable Long id, @RequestBody UpdateUserDTO updateUserDTO) {
         try {
