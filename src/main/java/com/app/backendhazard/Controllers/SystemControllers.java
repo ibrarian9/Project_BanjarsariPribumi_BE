@@ -356,6 +356,15 @@ public class SystemControllers {
         }
     }
 
+    @GetMapping(value = "/statusCompany", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getAllStatusCompany() {
+        try {
+            return systemService.getAllStatusCompany();
+        } catch (Exception e) {
+            return handleException(e);
+        }
+    }
+
     public ResponseEntity<?> handleLimitImage() {
         ErrorResponse errorResponse = new ErrorResponse(HttpStatus.EXPECTATION_FAILED.value(), "File Too Large!");
         return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED).body(errorResponse);

@@ -18,10 +18,16 @@ public class SystemServiceImpl implements SystemService {
     private final StatusKaryawanRepository statusKaryawanRepo;
     private final KategoriTemuanRepository kategoriTemuanRepo;
     private final ResponseHelperService responseHelperService;
+    private final StatusCompanyRepository statusCompanyRepo;
 
     @Override
     public ResponseEntity<Map<String, Object>> getAllStatusKaryawan() {
         return responseHelperService.getAllData(statusKaryawanRepo.findAll());
+    }
+
+    @Override
+    public ResponseEntity<Map<String, Object>> getAllStatusCompany() {
+        return responseHelperService.getAllData(statusCompanyRepo.findAll());
     }
 
     @Override

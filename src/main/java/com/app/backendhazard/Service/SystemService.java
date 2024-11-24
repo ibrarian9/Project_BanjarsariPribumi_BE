@@ -11,4 +11,5 @@ public interface SystemService {
     ResponseEntity<Map<String, Object>> getAllFindings();
     ResponseEntity<Map<String, Object>> getAllWorkArea();
     ResponseEntity<Map<String, Object>> getAllStatusKaryawan();
+    ResponseEntity<Map<String, Object>> getAllStatusCompany();
 }
