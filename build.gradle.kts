@@ -43,6 +43,8 @@ dependencies {
     // Poi Library
     implementation("org.apache.poi:poi:5.2.3")
     implementation("org.apache.poi:poi-ooxml:5.2.3")
+
+    implementation("net.bytebuddy:byte-buddy:1.14.8")
 }
 
 tasks.withType<Test> {

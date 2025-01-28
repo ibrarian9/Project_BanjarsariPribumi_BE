@@ -22,10 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -187,7 +184,7 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
                 .collect(Collectors.groupingBy(d -> d.getDailyInspection().getId()));
 
         // Map each Detail Daily Inspection to a structured response with its related question
-        List<DetailInspectionResponseDTO> inspectionResponseDTO = groupByDailyInspection.values().stream().map(detailData -> {
+        List<DetailInspectionResponseDTO> inspectionResponseDTO = new ArrayList<>(groupByDailyInspection.values().stream().map(detailData -> {
 
             DailyInspection dailyInspection = detailData.get(0).getDailyInspection();
 
@@ -213,7 +210,11 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
             responseDTO.setDailyInspection(dailyInspection);
 
             return responseDTO;
-        }).toList();
+        }).toList());
+
+        inspectionResponseDTO.sort(Comparator.comparing(
+                res -> res.getDailyInspection().getId(), Comparator.reverseOrder()
+        ));
 
         return responseHelperService.getAllData(inspectionResponseDTO);
     }
