@@ -31,6 +31,7 @@ import java.io.File;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -265,14 +266,12 @@ public class HazardReportServiceImpl implements HazardReportService {
             headerRow.createCell(2).setCellValue("Judul");
             headerRow.createCell(3).setCellValue("Nama");
             headerRow.createCell(4).setCellValue("Department");
-            headerRow.createCell(5).setCellValue("Perusahaan");
-            headerRow.createCell(6).setCellValue("Deskripsi");
-            headerRow.createCell(7).setCellValue("Lokasi");
-            headerRow.createCell(8).setCellValue("Jenis Temuan");
-            headerRow.createCell(9).setCellValue("Tindakan Perbaikan");
-            headerRow.createCell(10).setCellValue("Department Perbaikan");
-            headerRow.createCell(11).setCellValue("Perusahaan Pic");
-            headerRow.createCell(12).setCellValue("Status");
+            headerRow.createCell(5).setCellValue("Deskripsi");
+            headerRow.createCell(6).setCellValue("Lokasi");
+            headerRow.createCell(7).setCellValue("Jenis Temuan");
+            headerRow.createCell(8).setCellValue("Tindakan Perbaikan");
+            headerRow.createCell(9).setCellValue("Department Perbaikan");
+            headerRow.createCell(10).setCellValue("Status");
 
             int rowNum = 1;
             for (HazardStatusHistory report : data) {
@@ -284,17 +283,19 @@ public class HazardReportServiceImpl implements HazardReportService {
                 row.createCell(2).setCellValue(report.getReport().getTitle());
                 row.createCell(3).setCellValue(report.getReport().getNamaPelapor());
                 row.createCell(4).setCellValue(report.getReport().getDepartmentPelapor().getNamaDepartment());
-                row.createCell(5).setCellValue(report.getReport().getDepartmentPelapor().getCompany().getNamaCompany());
-                row.createCell(6).setCellValue(report.getReport().getDeskripsi());
-                row.createCell(7).setCellValue(report.getReport().getLokasi());
-                row.createCell(8).setCellValue(report.getReport().getKategoriTemuan().getKategoriTemuan());
-                row.createCell(9).setCellValue(report.getReport().getTindakan());
-                row.createCell(10).setCellValue(report.getReport().getDepartmentPerbaikan().getNamaDepartment());
-                row.createCell(11).setCellValue(report.getReport().getDepartmentPerbaikan().getCompany().getNamaCompany());
-                row.createCell(12).setCellValue(report.getStatus().getNamaStatus());
+                row.createCell(5).setCellValue(report.getReport().getDeskripsi());
+                row.createCell(6).setCellValue(report.getReport().getLokasi());
+                row.createCell(7).setCellValue(report.getReport().getKategoriTemuan().getKategoriTemuan());
+                row.createCell(8).setCellValue(report.getReport().getTindakan());
+                row.createCell(9).setCellValue(report.getReport().getDepartmentPerbaikan().getNamaDepartment());
+                row.createCell(10).setCellValue(report.getStatus().getNamaStatus());
 
                 rowNum++;
             }
+
+            // Generate Filename with Timestamp
+            String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+            String filename = "hazard_report_" + timestamp + ".xlsx";
 
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             workbook.write(outputStream);
@@ -302,7 +303,7 @@ public class HazardReportServiceImpl implements HazardReportService {
             ByteArrayInputStream inputStream = new ByteArrayInputStream(outputStream.toByteArray());
 
             HttpHeaders headers = new HttpHeaders();
-            headers.add("Content-Disposition", "attachment; filename=hazard_reports.xlsx");
+            headers.add("Content-Disposition", "attachment; filename=" + filename);
 
             return ResponseEntity.ok()
                     .headers(headers)

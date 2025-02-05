@@ -1,15 +1,23 @@
 package com.app.backendhazard.Service;
 
 import com.app.backendhazard.DTO.*;
+import com.app.backendhazard.Handler.ExcelDateConverter;
 import com.app.backendhazard.Models.*;
 import com.app.backendhazard.Repository.*;
 import com.app.backendhazard.Response.ErrorResponse;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.AllArgsConstructor;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +30,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -278,6 +287,59 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
         String imageUrl = "upload/dailyInspection/" + dailyInspectionId + "/" + inspectionAnswer.getGambar();
 
         return responseHelperService.fetchImageReport(imageUrl, "Daily Inspection Image Not Found");
+    }
+
+    @Override
+    public ResponseEntity<?> exportToExcel() {
+        List<DailyInspection> data = dailyInspectionRepo.findAll();
+
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Daily Inspection");
+
+            Row headerRow = sheet.createRow(0);
+            headerRow.createCell(0).setCellValue("No");
+            headerRow.createCell(1).setCellValue("Tanggal");
+            headerRow.createCell(2).setCellValue("Nama Pengawas");
+            headerRow.createCell(3).setCellValue("Department");
+            headerRow.createCell(4).setCellValue("Shift Kerja");
+            headerRow.createCell(5).setCellValue("Area Kerja");
+            headerRow.createCell(6).setCellValue("Status");
+            headerRow.createCell(7).setCellValue("Alasan");
+
+            int rowNum = 1;
+            for (DailyInspection inspection : data) {
+                Row row = sheet.createRow(rowNum);
+                row.createCell(0).setCellValue(rowNum);
+                if (inspection.getTanggalInspeksi() != null){
+                    row.createCell(1).setCellValue(ExcelDateConverter.formatDate(inspection.getTanggalInspeksi()));
+                }
+                row.createCell(2).setCellValue(inspection.getNamaPengawas());
+                row.createCell(3).setCellValue(inspection.getDepartmentPengawas().getNamaDepartment());
+                row.createCell(4).setCellValue(inspection.getShiftKerja().getNamaShift());
+                row.createCell(5).setCellValue(inspection.getAreaKerja().getNamaAreaKerja());
+                row.createCell(6).setCellValue(inspection.getStatus().getNamaStatus());
+                row.createCell(7).setCellValue(inspection.getAlasan() != null ? inspection.getAlasan() : "N/A");
+                rowNum++;
+            }
+
+            // Generate Filename with Timestamp
+            String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+            String filename = "daily_inspection_" + timestamp + ".xlsx";
+
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            workbook.write(outputStream);
+            ByteArrayInputStream inputStream = new ByteArrayInputStream(outputStream.toByteArray());
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.add("Content-Disposition", "attachment; filename=" + filename);
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                    .body(new InputStreamResource(inputStream));
+        } catch (IOException e) {
+            return responseHelperService.handleException(e);
+        }
     }
 
 }

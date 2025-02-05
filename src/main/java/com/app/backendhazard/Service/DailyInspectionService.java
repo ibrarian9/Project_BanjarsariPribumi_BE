@@ -20,4 +20,5 @@ public interface DailyInspectionService {
     ResponseEntity<?> editStatusDailyInspection(Long id, DailyInspectionStatusDTO dailyInspectionStatusDTO);
     ResponseEntity<Map<String, Object>> addDetailDailyInspection(DetailInspectionDTO detailInspectionDTO);
     ResponseEntity<?> imageForInspection(Long idDailyInspection, Long id);
+    ResponseEntity<?> exportToExcel();
 }

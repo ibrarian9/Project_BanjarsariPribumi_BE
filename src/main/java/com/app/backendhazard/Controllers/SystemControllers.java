@@ -173,6 +173,11 @@ public class SystemControllers {
         }
     }
 
+    @GetMapping(path = "/dailyInspection/export")
+    public ResponseEntity<?> exportDailyInspection() {
+        return dailyInspectionService.exportToExcel();
+    }
+
     @GetMapping(path = "/imageDailyInspection/{dailyInspectionId}/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> inpectionImage(@PathVariable Long dailyInspectionId, @PathVariable Long id) {
         return dailyInspectionService.imageForInspection(dailyInspectionId, id);
@@ -193,8 +198,6 @@ public class SystemControllers {
             ,@ModelAttribute("penyelesaian") PenyelesaianDTO penyelesaian
             ,@RequestPart(value = "gambar") MultipartFile gambar)
     {
-
-        log.info("size gambar res : {}", gambar.getSize());
 
         if (gambar.getSize() > twoMb){
             return handleLimitImage();
@@ -304,7 +307,7 @@ public class SystemControllers {
         }
     }
 
-    @GetMapping(value = "historyStatus/export")
+    @GetMapping(value = "/historyStatus/export")
     public ResponseEntity<?> exportStatusHistory(){
         return hazardReportService.exportToExcel();
     }
