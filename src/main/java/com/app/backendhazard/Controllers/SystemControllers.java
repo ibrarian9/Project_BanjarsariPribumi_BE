@@ -91,8 +91,6 @@ public class SystemControllers {
     public ResponseEntity<?> addHazardReport(@ModelAttribute("hazardReport") HazardReportDTO hazardReport,
                                              @RequestPart(value = "gambar") MultipartFile gambar)
     {
-        log.info("size gambar : {}", gambar.getSize());
-
         if (gambar.getSize() > twoMb) {
             return handleLimitImage();
         }

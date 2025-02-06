@@ -14,8 +14,6 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.apache.tomcat.util.http.fileupload.FileUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -41,7 +39,6 @@ import java.util.Map;
 @AllArgsConstructor
 public class HazardReportServiceImpl implements HazardReportService {
 
-    private static final Logger log = LoggerFactory.getLogger(HazardReportServiceImpl.class);
     private final KategoriTemuanRepository kategoriTemuanRepo;
     private final DepartmentRepository departmentRepo;
     private final HazardReportRepository hazardReportRepo;
@@ -51,8 +48,6 @@ public class HazardReportServiceImpl implements HazardReportService {
 
     @Override
     public ResponseEntity<?> addHazardReport(HazardReportDTO hazardReport, MultipartFile gambar) {
-
-        log.info("Hazard Report : {}", hazardReport );
 
         // Create & set new Report
         HazardReport newReport = new HazardReport();
