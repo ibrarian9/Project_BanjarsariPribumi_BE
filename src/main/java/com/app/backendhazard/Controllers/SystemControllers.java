@@ -6,8 +6,6 @@ import com.app.backendhazard.Response.ErrorResponse;
 import com.app.backendhazard.Service.*;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.AllArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -21,7 +19,6 @@ import java.util.List;
 @RequestMapping("/api")
 public class SystemControllers {
 
-    private static final Logger log = LoggerFactory.getLogger(SystemControllers.class);
     private final long twoMb = 10 * 1024 * 1024;
     private final SystemService systemService;
     private final UsersService usersService;

@@ -107,7 +107,7 @@ public class HazardReportServiceImpl implements HazardReportService {
         HazardReport hazardReport = hazardStatusHistoryRepo.findByReportId(id)
                 .orElseThrow(() -> new EntityNotFoundException("Hazard Report Not Found " + id)).getReport();
 
-        String imageUrl = "upload/hazardReport/" + hazardReport.getId() + "/" + hazardReport.getGambar();
+        String imageUrl = "/home/root/ReportPic/upload/hazardReport/" + hazardReport.getId() + "/" + hazardReport.getGambar();
 
         return responseHelperService.fetchImageReport(imageUrl, "Hazard Report Image Not Found");
     }

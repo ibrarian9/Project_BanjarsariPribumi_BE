@@ -101,7 +101,7 @@ public class PencapaianServiceImpl implements PencapaianService {
         Penyelesaian penyelesaian = penyelesaianRepo.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Penyelesaian Not Found " + id));
 
-        String imageUrl = "upload/resolution/" + penyelesaian.getId() + "/" + penyelesaian.getGambar();
+        String imageUrl = "/home/root/ReportPic/upload/resolution/" + penyelesaian.getId() + "/" + penyelesaian.getGambar();
 
         return responseHelperService.fetchImageReport(imageUrl, "Resolution Image Not Found");
     }

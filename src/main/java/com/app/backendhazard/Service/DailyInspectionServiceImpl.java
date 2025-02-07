@@ -284,7 +284,7 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
         InspectionAnswer inspectionAnswer = answerInspectionRepo.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Inspection Answer Not Found " + id));
 
-        String imageUrl = "upload/dailyInspection/" + dailyInspectionId + "/" + inspectionAnswer.getGambar();
+        String imageUrl = "/home/root/ReportPic/upload/dailyInspection/" + dailyInspectionId + "/" + inspectionAnswer.getGambar();
 
         return responseHelperService.fetchImageReport(imageUrl, "Daily Inspection Image Not Found");
     }
