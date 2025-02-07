@@ -129,7 +129,7 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
     }
 
     private String saveImageToFileSystem(MultipartFile imageFile, Long id) throws IOException {
-        String uploadDir = "upload/dailyInspection/" + id + "/";
+        String uploadDir = "/home/root/ReportPic/dailyInspection/" + id + "/";
         Files.createDirectories(Paths.get(uploadDir)); // Ensure directory exists
         // Make file
         String fileName = UUID.randomUUID() + ".jpg";
@@ -284,7 +284,7 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
         InspectionAnswer inspectionAnswer = answerInspectionRepo.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Inspection Answer Not Found " + id));
 
-        String imageUrl = "/home/root/ReportPic/upload/dailyInspection/" + dailyInspectionId + "/" + inspectionAnswer.getGambar();
+        String imageUrl = "/home/root/ReportPic/dailyInspection/" + dailyInspectionId + "/" + inspectionAnswer.getGambar();
 
         return responseHelperService.fetchImageReport(imageUrl, "Daily Inspection Image Not Found");
     }

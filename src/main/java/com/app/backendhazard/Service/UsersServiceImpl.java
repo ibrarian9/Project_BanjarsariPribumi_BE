@@ -55,9 +55,13 @@ public class UsersServiceImpl implements UsersService {
             users.setEmail(updateUserDTO.getEmail());
         }
 
-        // Update password if provided
+        // Check if the current password matches
         if (updateUserDTO.getPassword() != null && !updateUserDTO.getPassword().isEmpty()) {
-            users.setPassword(passwordEncoder.encode(updateUserDTO.getPassword()));
+            if (!passwordEncoder.matches(updateUserDTO.getPassword(), users.getPassword())) {
+                throw new IllegalArgumentException("Incorrect current password. Profile update failed.");
+            }
+        } else {
+            throw new IllegalArgumentException("Current password is required to update profile.");
         }
 
         usersRepository.save(users);

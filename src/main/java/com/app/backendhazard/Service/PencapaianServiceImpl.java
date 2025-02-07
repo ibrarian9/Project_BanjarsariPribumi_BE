@@ -65,7 +65,7 @@ public class PencapaianServiceImpl implements PencapaianService {
             String namaGambar = "resolution_" + System.currentTimeMillis() + ".jpg";
             penyelesaianEntity.setGambar(namaGambar);
 
-            String uploadDir = "upload/resolution/" + penyelesaianEntity.getId();
+            String uploadDir = "resolution/" + penyelesaianEntity.getId();
             try {
                 if (oldImage != null && !oldImage.isEmpty()) {
                     File oldFile = new File(uploadDir, oldImage);
@@ -101,7 +101,7 @@ public class PencapaianServiceImpl implements PencapaianService {
         Penyelesaian penyelesaian = penyelesaianRepo.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Penyelesaian Not Found " + id));
 
-        String imageUrl = "/home/root/ReportPic/upload/resolution/" + penyelesaian.getId() + "/" + penyelesaian.getGambar();
+        String imageUrl = "/home/root/ReportPic/resolution/" + penyelesaian.getId() + "/" + penyelesaian.getGambar();
 
         return responseHelperService.fetchImageReport(imageUrl, "Resolution Image Not Found");
     }
