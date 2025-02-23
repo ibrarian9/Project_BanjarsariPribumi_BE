@@ -12,8 +12,6 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -38,7 +36,6 @@ import java.util.stream.Collectors;
 @AllArgsConstructor
 public class DailyInspectionServiceImpl implements DailyInspectionService {
 
-    private static final Logger log = LoggerFactory.getLogger(DailyInspectionServiceImpl.class);
     private final DailyInspectionRepository dailyInspectionRepo;
     private final DetailDailyInspectionRepository detailDailyInspectionRepo;
     private final StatusRepository statusRepo;
@@ -132,7 +129,7 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
         String uploadDir = "/home/root/ReportPic/dailyInspection/" + id + "/";
         Files.createDirectories(Paths.get(uploadDir)); // Ensure directory exists
         // Make file
-        String fileName = UUID.randomUUID() + ".jpg";
+        String fileName = UUID.randomUUID() + ".jpeg";
         File file = new File(uploadDir, fileName);
         // Write the file directly with FileCopyUtils
         try (InputStream in = imageFile.getInputStream(); OutputStream out = new FileOutputStream(file)) {
@@ -160,8 +157,6 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
             answerDTO.setJawaban(detail.getInspectionAnswer().getJawaban());
             answerDTO.setCatatan(detail.getInspectionAnswer().getCatatan());
             answerDTO.setImageLink(BuildLinkImage(request, id, detail.getInspectionAnswer().getId()));
-
-            log.info("nama fileee : {}", BuildLinkImage(request, id, detail.getInspectionAnswer().getId()));
 
             dto.setAnswerDetail(answerDTO);
             return dto;
@@ -228,6 +223,7 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
         return responseHelperService.getAllData(inspectionResponseDTO);
     }
 
+    @Transactional
     @Override
     public ResponseEntity<?> editStatusDailyInspection(Long id, DailyInspectionStatusDTO dailyInspectionStatusDTO) {
         // Find Daily Inspection By id
@@ -259,6 +255,7 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
         return responseHelperService.saveEntityWithMessage("Daily Inspection Update Status Successfully");
     }
 
+    @Transactional
     @Override
     public ResponseEntity<Map<String, Object>> addDetailDailyInspection(DetailInspectionDTO detailInspectionDTO) {
         DailyInspection dailyInspection = dailyInspectionRepo.findById(detailInspectionDTO.getDailyInspectionId())

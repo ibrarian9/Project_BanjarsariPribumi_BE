@@ -13,11 +13,9 @@ public interface HazardStatusHistoryRepository extends JpaRepository<HazardStatu
 
     @Query("SELECT h FROM HazardStatusHistory h WHERE "
             + "(:search IS NULL OR LOWER(h.report.namaPelapor) LIKE LOWER(CONCAT('%', :search, '%')) OR "
-            + "LOWER(h.report.title) LIKE LOWER(CONCAT('%', :search, '$')) OR "
+            + "LOWER(h.report.title) LIKE LOWER(CONCAT('%', :search, '%')) OR "
             + "LOWER(h.report.lokasi) LIKE LOWER(CONCAT('%', :search, '%')) OR "
-            + "LOWER(h.status.namaStatus) LIKE LOWER(CONCAT('%', :search, '%')) OR "
-            + "LOWER(h.report.departmentPelapor.namaDepartment) LIKE LOWER(CONCAT('%', :search, '%')) OR "
-            + "LOWER(h.report.departmentPerbaikan.namaDepartment) LIKE LOWER(CONCAT('%', :search, '%')))")
+            + "LOWER(h.status.namaStatus) LIKE LOWER(CONCAT('%', :search, '%')))")
     List<HazardStatusHistory> searchHazardStatusHistory(@Param("search") String search);
 
     @Query("SELECT h FROM HazardStatusHistory h WHERE "

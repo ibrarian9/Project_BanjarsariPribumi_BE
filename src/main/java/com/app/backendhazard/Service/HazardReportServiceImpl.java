@@ -20,6 +20,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -29,11 +30,9 @@ import java.io.File;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 @AllArgsConstructor
@@ -46,6 +45,7 @@ public class HazardReportServiceImpl implements HazardReportService {
     private final StatusRepository statusRepo;
     private final ResponseHelperService responseHelperService;
 
+    @Transactional
     @Override
     public ResponseEntity<?> addHazardReport(HazardReportDTO hazardReport, MultipartFile gambar) {
 
@@ -76,7 +76,7 @@ public class HazardReportServiceImpl implements HazardReportService {
         HazardReport savedReport = hazardReportRepo.save(newReport);
 
         // Handle Image Upload
-        String nameGambar = "gambar_" + System.currentTimeMillis() + ".jpg";
+        String nameGambar = "gambar_" + UUID.randomUUID() + ".jpeg";
         savedReport.setGambar(nameGambar);
 
         HazardReport hazardReportWithId = hazardReportRepo.save(savedReport);
@@ -96,7 +96,7 @@ public class HazardReportServiceImpl implements HazardReportService {
         history.setReport(hazardReportWithId);
         history.setStatus(statusLaporan);
         history.setUpdateBy("Admin");
-        history.setUpdateDate(LocalDateTime.now().atZone(ZoneId.of("Asia/Jakarta")).toLocalDateTime());
+        history.setUpdateDate(ZonedDateTime.now(ZoneId.of("Asia/Jakarta")).toLocalDateTime());
 
         hazardStatusHistoryRepo.save(history);
         return responseHelperService.saveEntityWithMessage("Hazard Report Berhasil Dibuat!");
@@ -171,8 +171,10 @@ public class HazardReportServiceImpl implements HazardReportService {
         return responseHelperService.getAllData(hazardStatusHistoryRepo.filterByDepartmentAndStatus(dept, status));
     }
 
+    @Transactional
     @Override
     public ResponseEntity<?> editHistoryStatus(Long id, HazardStatusDTO hazardStatusDTO) {
+
         // Cek id hazard report
         HazardReport hazardReport = hazardReportRepo.findById(hazardStatusDTO.getReportId())
                 .orElseThrow(() -> new EntityNotFoundException("Report Not Found " + hazardStatusDTO.getReportId()));
@@ -186,11 +188,15 @@ public class HazardReportServiceImpl implements HazardReportService {
         history.setReport(hazardReport);
         history.setStatus(status);
 
-        // Cek when status reject, alasan required
+        if (hazardStatusDTO.getReportId() == null || hazardStatusDTO.getStatusId() == null) {
+            return responseHelperService.handleExceptionByMessage("Report ID and Status ID are required!");
+        }
+
         int reject = 3;
+        // Cek when status reject, alasan required
         if (status.getId() != null && status.getId().equals(reject)) {
             if (!StringUtils.hasText(hazardStatusDTO.getAlasan())) {
-                ErrorResponse errorRes = new ErrorResponse(HttpStatus.BAD_REQUEST.value(), "Alasan is required when status is Rejected");
+                ErrorResponse errorRes = new ErrorResponse(HttpStatus.BAD_REQUEST.value(), "Reason is required when status is Rejected");
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorRes);
             }
             history.setAlasan(hazardStatusDTO.getAlasan());
@@ -207,6 +213,7 @@ public class HazardReportServiceImpl implements HazardReportService {
         return responseHelperService.saveEntityWithMessage("Status Hazard Report updated successfully!");
     }
 
+    @Transactional
     @Override
     public ResponseEntity<?> deleteHistoryStatus(Long id) {
         // fetch hazard report status id
@@ -255,35 +262,40 @@ public class HazardReportServiceImpl implements HazardReportService {
             Workbook workbook = new XSSFWorkbook();
             Sheet sheet = workbook.createSheet("Hazard Report");
 
+            String[] headers = {
+                    "No", "Tanggal", "Judul Laporan", "Nama Pelapor", "Department Pelapor",
+                    "Perusahaan Pelapor", "Deskripsi", "Lokasi", "Kategori Laporan", "Tindakan Perbaikan",
+                    "Department Perbaikan", "Perusahaan Perbaikan", "Status"
+            };
+
             Row headerRow = sheet.createRow(0);
-            headerRow.createCell(0).setCellValue("No");
-            headerRow.createCell(1).setCellValue("Tanggal");
-            headerRow.createCell(2).setCellValue("Judul");
-            headerRow.createCell(3).setCellValue("Nama");
-            headerRow.createCell(4).setCellValue("Department");
-            headerRow.createCell(5).setCellValue("Deskripsi");
-            headerRow.createCell(6).setCellValue("Lokasi");
-            headerRow.createCell(7).setCellValue("Jenis Temuan");
-            headerRow.createCell(8).setCellValue("Tindakan Perbaikan");
-            headerRow.createCell(9).setCellValue("Department Perbaikan");
-            headerRow.createCell(10).setCellValue("Status");
+            for (int i = 0; i < headers.length; i++) {
+                headerRow.createCell(i).setCellValue(headers[i]);
+            }
 
             int rowNum = 1;
             for (HazardStatusHistory report : data) {
                 Row row = sheet.createRow(rowNum);
-                row.createCell(0).setCellValue(rowNum);
-                if (report.getReport().getTanggalKejadian() != null){
-                    row.createCell(1).setCellValue(ExcelDateConverter.formatDate(report.getReport().getTanggalKejadian()));
+                Object[] values = {
+                        rowNum,
+                        report.getReport().getTanggalKejadian() != null ?
+                                ExcelDateConverter.formatDate(report.getReport().getTanggalKejadian()) : "-",
+                        report.getReport().getTitle(),
+                        report.getReport().getNamaPelapor(),
+                        report.getReport().getDepartmentPelapor().getNamaDepartment(),
+                        report.getReport().getDepartmentPelapor().getCompany().getNamaCompany(),
+                        report.getReport().getDeskripsi(),
+                        report.getReport().getLokasi(),
+                        report.getReport().getKategoriTemuan().getKategoriTemuan(),
+                        report.getReport().getTindakan(),
+                        report.getReport().getDepartmentPerbaikan().getNamaDepartment(),
+                        report.getReport().getDepartmentPerbaikan().getCompany().getNamaCompany(),
+                        report.getStatus().getNamaStatus()
+                };
+
+                for (int i = 0; i < values.length; i++) {
+                    row.createCell(i).setCellValue(values[i].toString());
                 }
-                row.createCell(2).setCellValue(report.getReport().getTitle());
-                row.createCell(3).setCellValue(report.getReport().getNamaPelapor());
-                row.createCell(4).setCellValue(report.getReport().getDepartmentPelapor().getNamaDepartment());
-                row.createCell(5).setCellValue(report.getReport().getDeskripsi());
-                row.createCell(6).setCellValue(report.getReport().getLokasi());
-                row.createCell(7).setCellValue(report.getReport().getKategoriTemuan().getKategoriTemuan());
-                row.createCell(8).setCellValue(report.getReport().getTindakan());
-                row.createCell(9).setCellValue(report.getReport().getDepartmentPerbaikan().getNamaDepartment());
-                row.createCell(10).setCellValue(report.getStatus().getNamaStatus());
 
                 rowNum++;
             }
@@ -297,11 +309,11 @@ public class HazardReportServiceImpl implements HazardReportService {
             workbook.close();
             ByteArrayInputStream inputStream = new ByteArrayInputStream(outputStream.toByteArray());
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.add("Content-Disposition", "attachment; filename=" + filename);
+            HttpHeaders header = new HttpHeaders();
+            header.add("Content-Disposition", "attachment; filename=" + filename);
 
             return ResponseEntity.ok()
-                    .headers(headers)
+                    .headers(header)
                     .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                     .body(new InputStreamResource(inputStream));
         } catch (IOException e){

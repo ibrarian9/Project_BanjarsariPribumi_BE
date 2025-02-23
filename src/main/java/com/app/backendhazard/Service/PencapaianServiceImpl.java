@@ -2,22 +2,21 @@ package com.app.backendhazard.Service;
 
 import com.app.backendhazard.DTO.PenyelesaianDTO;
 import com.app.backendhazard.Handler.FileUploadUtil;
-import com.app.backendhazard.Models.Department;
-import com.app.backendhazard.Models.HazardReport;
-import com.app.backendhazard.Models.Pencapaian;
-import com.app.backendhazard.Models.Penyelesaian;
+import com.app.backendhazard.Models.*;
 import com.app.backendhazard.Repository.*;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 @AllArgsConstructor
@@ -29,12 +28,14 @@ public class PencapaianServiceImpl implements PencapaianService {
     private final HazardReportRepository hazardReportRepo;
     private final HazardStatusHistoryRepository hazardStatusHistoryRepo;
     private final ResponseHelperService responseHelperService;
+    private final StatusRepository statusRepository;
 
     @Override
     public ResponseEntity<Map<String, Object>> addPencapaian(Pencapaian pencapaian) {
         return responseHelperService.saveEntity(pencapaian, pencapaianRepo);
     }
 
+    @Transactional
     @Override
     public ResponseEntity<?> addPenyelesaian(Long id, PenyelesaianDTO penyelesaian, MultipartFile gambar) {
         // check id department & hazard report exist
@@ -43,6 +44,12 @@ public class PencapaianServiceImpl implements PencapaianService {
         HazardReport hazardReport = hazardStatusHistoryRepo.findByReportId(id)
                 .orElseThrow(() -> new EntityNotFoundException("Hazard Report Not Found"))
                 .getReport();
+
+        HazardStatusHistory hazardStatusHistory = hazardStatusHistoryRepo.findByReportId(id)
+                .orElseThrow(() -> new EntityNotFoundException("Hazard Report Not Found"));
+
+        Status status = statusRepository.findById(3L)
+                .orElseThrow(() -> new EntityNotFoundException("Status Not Found"));
 
         // Create or retrieve existing Penyelesaian
         Penyelesaian penyelesaianEntity = hazardReport.getPenyelesaian();
@@ -62,7 +69,7 @@ public class PencapaianServiceImpl implements PencapaianService {
             String oldImage = penyelesaianEntity.getGambar();
 
             // make name for image
-            String namaGambar = "resolution_" + System.currentTimeMillis() + ".jpg";
+            String namaGambar = "resolution_" + UUID.randomUUID() + ".jpeg";
             penyelesaianEntity.setGambar(namaGambar);
 
             String uploadDir = "resolution/" + penyelesaianEntity.getId();
@@ -88,6 +95,9 @@ public class PencapaianServiceImpl implements PencapaianService {
             hazardReport.setPenyelesaian(penyelesaianEntity);
             hazardReportRepo.save(hazardReport);
         }
+
+        hazardStatusHistory.setStatus(status);
+        hazardStatusHistoryRepo.save(hazardStatusHistory);
 
         // Prepare Response
         Map<String, Object> response = new HashMap<>();

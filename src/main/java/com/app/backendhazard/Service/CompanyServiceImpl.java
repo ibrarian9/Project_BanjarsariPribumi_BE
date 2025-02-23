@@ -9,6 +9,7 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
 
@@ -30,6 +31,7 @@ public class CompanyServiceImpl implements CompanyService {
         return responseHelperService.getDetailData(id, perusahaanRepo);
     }
 
+    @Transactional
     @Override
     public ResponseEntity<Map<String, Object>> addCompany(CompanyDTO company) {
         StatusCompany statusCompany = statusRepo.findById(company.getStatusCompanyId())

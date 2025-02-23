@@ -19,7 +19,7 @@ import java.util.List;
 @RequestMapping("/api")
 public class SystemControllers {
 
-    private final long twoMb = 10 * 1024 * 1024;
+    private final long maxFileSize = 10 * 1024 * 1024;
     private final SystemService systemService;
     private final UsersService usersService;
     private final CompanyService companyService;
@@ -88,7 +88,7 @@ public class SystemControllers {
     public ResponseEntity<?> addHazardReport(@ModelAttribute("hazardReport") HazardReportDTO hazardReport,
                                              @RequestPart(value = "gambar") MultipartFile gambar)
     {
-        if (gambar.getSize() > twoMb) {
+        if (gambar.getSize() > maxFileSize) {
             return handleLimitImage();
         }
 
@@ -194,7 +194,7 @@ public class SystemControllers {
             ,@RequestPart(value = "gambar") MultipartFile gambar)
     {
 
-        if (gambar.getSize() > twoMb){
+        if (gambar.getSize() > maxFileSize){
             return handleLimitImage();
         }
 
