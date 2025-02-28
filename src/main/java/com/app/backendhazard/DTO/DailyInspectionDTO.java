@@ -10,4 +10,5 @@ public class DailyInspectionDTO {
     private Long areaKerjaId;
     private Long statusLaporanId;
     private String keteranganAreaKerja;
+    private Long userId;
 }

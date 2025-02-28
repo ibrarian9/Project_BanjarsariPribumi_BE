@@ -6,12 +6,15 @@ import com.app.backendhazard.Response.ErrorResponse;
 import com.app.backendhazard.Service.*;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.AllArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @AllArgsConstructor
@@ -19,6 +22,7 @@ import java.util.List;
 @RequestMapping("/api")
 public class SystemControllers {
 
+    private static final Logger log = LoggerFactory.getLogger(SystemControllers.class);
     private final long maxFileSize = 10 * 1024 * 1024;
     private final SystemService systemService;
     private final UsersService usersService;
@@ -121,10 +125,15 @@ public class SystemControllers {
     @PostMapping(path = "/inspectionAnswer/add", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> postAnswer(
             @RequestPart("requestDTO") InspectionRequestDTO requestDTO,
-            @RequestParam("image") List<MultipartFile> imageFiles
+            @RequestParam(value = "image", required = false) List<MultipartFile> imageFiles
     ) {
         try {
-            return dailyInspectionService.addInspectionAnswer(requestDTO, imageFiles);
+
+            List<MultipartFile> nonEmptyImageFiles = imageFiles != null ?
+                    imageFiles.stream().filter(file -> !file.isEmpty()).toList() :
+                    new ArrayList<>();
+
+            return dailyInspectionService.addInspectionAnswer(requestDTO, nonEmptyImageFiles);
         } catch (Exception e) {
             return handleException(e);
         }
@@ -135,6 +144,18 @@ public class SystemControllers {
         try {
             return dailyInspectionService.editStatusDailyInspection(id, dailyInspectionStatusDTO);
         } catch (Exception e) {
+            return handleException(e);
+        }
+    }
+
+    @PutMapping(path = "/inspectionAnswer/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> editInspectionAnswer(
+            @PathVariable Long id,
+            @RequestBody UpdateInspectionStatusDTO updateInspectionStatusDTO
+    ) {
+        try {
+            return dailyInspectionService.editStatusAnswer(id, updateInspectionStatusDTO);
+        } catch (Exception e){
             return handleException(e);
         }
     }
@@ -329,6 +350,15 @@ public class SystemControllers {
     public ResponseEntity<?> updateUsers(@PathVariable Long id, @RequestBody UpdateUserDTO updateUserDTO) {
         try {
             return usersService.updateProfile(id, updateUserDTO);
+        } catch (Exception e){
+            return handleException(e);
+        }
+    }
+
+    @GetMapping(value = "/pencapaianSap/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getPencapaianSap(@PathVariable Long id){
+        try {
+            return usersService.pencapaianSAP(id);
         } catch (Exception e){
             return handleException(e);
         }

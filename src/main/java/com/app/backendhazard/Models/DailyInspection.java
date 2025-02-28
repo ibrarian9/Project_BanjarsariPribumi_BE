@@ -27,6 +27,9 @@ public class DailyInspection {
     @ManyToOne
     @JoinColumn(name = "area_kerja_id", referencedColumnName = "id")
     private AreaKerja areaKerja;
+    @ManyToOne
+    @JoinColumn(name = "user_id", referencedColumnName = "id")
+    private Users user;
     @Column(name = "keterangan_area_kerja")
     private String keteranganAreaKerja;
     @ManyToOne

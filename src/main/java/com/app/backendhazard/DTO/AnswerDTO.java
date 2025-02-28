@@ -7,4 +7,5 @@ public class AnswerDTO {
     private Long questionId;
     private Boolean jawaban;
     private String catatan;
+    private Long statusId;
 }

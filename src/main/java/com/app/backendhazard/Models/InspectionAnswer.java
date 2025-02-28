@@ -14,7 +14,12 @@ public class InspectionAnswer {
     private Boolean jawaban;
     @Column(name = "catatan")
     private String catatan;
+    @ManyToOne
+    @JoinColumn(name = "status_id", referencedColumnName = "id")
+    private Status status;
     @Column(name = "gambar", columnDefinition = "TEXT")
     private String gambar;
-
+    @ManyToOne
+    @JoinColumn(name = "users_id", referencedColumnName = "id")
+    private Users lastUpdate;
 }

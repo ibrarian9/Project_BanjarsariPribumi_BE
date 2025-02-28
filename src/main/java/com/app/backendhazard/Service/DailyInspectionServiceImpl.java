@@ -2,6 +2,7 @@ package com.app.backendhazard.Service;
 
 import com.app.backendhazard.DTO.*;
 import com.app.backendhazard.Handler.ExcelDateConverter;
+import com.app.backendhazard.Handler.FolderImageApp;
 import com.app.backendhazard.Models.*;
 import com.app.backendhazard.Repository.*;
 import com.app.backendhazard.Response.ErrorResponse;
@@ -12,6 +13,9 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -36,6 +40,7 @@ import java.util.stream.Collectors;
 @AllArgsConstructor
 public class DailyInspectionServiceImpl implements DailyInspectionService {
 
+    private static final Logger log = LoggerFactory.getLogger(DailyInspectionServiceImpl.class);
     private final DailyInspectionRepository dailyInspectionRepo;
     private final DetailDailyInspectionRepository detailDailyInspectionRepo;
     private final StatusRepository statusRepo;
@@ -45,6 +50,9 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
     private final ShiftRepository shiftRepo;
     private final AreaKerjaRepository areaKerjaRepo;
     private final ResponseHelperService responseHelperService;
+    private final FolderImageApp folderImageApp;
+    private final UsersRepository usersRepository;
+    private final InspectionAnswerRepository inspectionAnswerRepository;
 
     @Override
     public ResponseEntity<Map<String, Object>> getInspectionQuestion(Long areakerjaId) {
@@ -58,6 +66,8 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
             List<MultipartFile> gambarFiles
     ) {
         // Check id
+        log.debug("Received JSON: {}", requestDTO);
+
         Status statusLaporan = statusRepo.findById(requestDTO.getDailyInspectionDTO().getStatusLaporanId())
                 .orElseThrow(() -> new EntityNotFoundException("Status Not Found " + requestDTO.getDailyInspectionDTO().getStatusLaporanId()));
 
@@ -70,6 +80,9 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
         AreaKerja areaKerja = areaKerjaRepo.findById(requestDTO.getDailyInspectionDTO().getAreaKerjaId())
                 .orElseThrow(() -> new EntityNotFoundException("Area Kerja Not Found " + requestDTO.getDailyInspectionDTO().getAreaKerjaId()));
 
+        Users users = usersRepository.findById(requestDTO.getDailyInspectionDTO().getUserId())
+                .orElseThrow(() -> new EntityNotFoundException("Users Not Found " + requestDTO.getDailyInspectionDTO().getUserId()));
+
         // Create new Daily Inspection Entity
         DailyInspection dailyInspection = new DailyInspection();
         dailyInspection.setNamaPengawas(requestDTO.getDailyInspectionDTO().getNamaPengawas());
@@ -78,33 +91,49 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
         dailyInspection.setShiftKerja(shiftKerja);
         dailyInspection.setAreaKerja(areaKerja);
         dailyInspection.setStatus(statusLaporan);
+        dailyInspection.setUser(users);
         dailyInspection.setKeteranganAreaKerja(requestDTO.getDailyInspectionDTO().getKeteranganAreaKerja());
 
         DailyInspection savedDailyInspection = dailyInspectionRepo.save(dailyInspection);
 
         List<DetailDailyInspection> detailToSave = new ArrayList<>();
-        // to map image files to each answerDTO
-        int imageIndex = 0;
-        // Process each AnswerDTO & Create Detail Daily Inspection records
-        for (AnswerDTO answerDTO : requestDTO.getAnswerDTOList() ) {
+
+        List<Integer> imageIndices = requestDTO.getImageIndicates() != null ?
+                                    requestDTO.getImageIndicates() :
+                                    new ArrayList<>();
+
+        Map<Integer, MultipartFile> imageMap = new HashMap<>();
+        for (int i = 0; i < gambarFiles.size() && i < imageIndices.size(); i++) {
+            imageMap.put(imageIndices.get(i), gambarFiles.get(i));
+        }
+
+        for (int position = 0; position < requestDTO.getAnswerDTOList().size(); position++) {
+            AnswerDTO answerDTO = requestDTO.getAnswerDTOList().get(position);
+
             // Check id
             InspectionQuestion inspectionQuestion = questionInspectionRepo.findById(answerDTO.getQuestionId())
                     .orElseThrow(() -> new EntityNotFoundException("Question Not Found " + answerDTO.getQuestionId()));
+
+            Status status = statusRepo.findById(answerDTO.getStatusId())
+                    .orElseThrow(() -> new EntityNotFoundException("Status Not Found " + answerDTO.getStatusId()));
 
             // Create & save the Inspection Answer entity
             InspectionAnswer answer = new InspectionAnswer();
             answer.setJawaban(answerDTO.getJawaban());
             answer.setCatatan(answerDTO.getCatatan());
+            answer.setStatus(status);
 
             // Check if image file
-            if (!gambarFiles.isEmpty() && imageIndex < gambarFiles.size()) {
-                MultipartFile imageFile = gambarFiles.get(imageIndex++);
+            MultipartFile imageFile = imageMap.get(position);
+            if (imageFile != null) {
                 try {
                     String filePath = saveImageToFileSystem(imageFile, savedDailyInspection.getId());
                     answer.setGambar(filePath);
                 } catch (IOException e) {
-                    return  responseHelperService.handleException(e);
+                    return responseHelperService.handleException(e);
                 }
+            } else {
+                answer.setGambar(null);
             }
 
             // save answer & directly use the saved instance
@@ -119,6 +148,7 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
             // Add to List for batch saving
             detailToSave.add(detailDailyInspection);
         }
+
         // Batch save all DetailDailyInspection record
         detailDailyInspectionRepo.saveAll(detailToSave);
 
@@ -126,7 +156,7 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
     }
 
     private String saveImageToFileSystem(MultipartFile imageFile, Long id) throws IOException {
-        String uploadDir = "/home/root/ReportPic/dailyInspection/" + id + "/";
+        String uploadDir = folderImageApp.getFolderPath() + "ReportPic/dailyInspection/" + id + "/";
         Files.createDirectories(Paths.get(uploadDir)); // Ensure directory exists
         // Make file
         String fileName = UUID.randomUUID() + ".jpeg";
@@ -152,12 +182,26 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
             QuestionAnswerDTO dto = new QuestionAnswerDTO();
             dto.setQuestionText(detail.getInspectionQuestion().getQuestion());
 
+            Users lastUpdate = null;
+
+
             // Show Answer
             DetailAnswerDTO answerDTO = new DetailAnswerDTO();
+            answerDTO.setId(detail.getInspectionAnswer().getId());
             answerDTO.setJawaban(detail.getInspectionAnswer().getJawaban());
             answerDTO.setCatatan(detail.getInspectionAnswer().getCatatan());
-            answerDTO.setImageLink(BuildLinkImage(request, id, detail.getInspectionAnswer().getId()));
-
+            answerDTO.setStatus(detail.getInspectionAnswer().getStatus());
+            if (detail.getInspectionAnswer().getLastUpdate() != null) {
+                lastUpdate = usersRepository.findById(detail.getInspectionAnswer().getLastUpdate().getId()).orElse(null);
+            }
+            if (lastUpdate != null) {
+                answerDTO.setLastUpdate(lastUpdate);
+            }
+            if (detail.getInspectionAnswer().getGambar() != null){
+                answerDTO.setImageLink(BuildLinkImage(request, id, detail.getInspectionAnswer().getId()));
+            } else {
+                answerDTO.setImageLink(null);
+            }
             dto.setAnswerDetail(answerDTO);
             return dto;
         }).toList();
@@ -191,23 +235,6 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
         List<DetailInspectionResponseDTO> inspectionResponseDTO = new ArrayList<>(groupByDailyInspection.values().stream().map(detailData -> {
 
             DailyInspection dailyInspection = detailData.get(0).getDailyInspection();
-
-            // Map each Detail Daily Inspection to a DTO
-            List<QuestionAnswerDTO> questionAnswerDTOList = detailData.stream().map(data -> {
-                // Set Answer
-                DetailAnswerDTO answerDTO = new DetailAnswerDTO();
-                answerDTO.setCatatan(data.getInspectionAnswer().getCatatan());
-                answerDTO.setJawaban(data.getInspectionAnswer().getJawaban());
-
-                // Set Question Answer
-                QuestionAnswerDTO dto = new QuestionAnswerDTO();
-                dto.setQuestionText(data.getInspectionQuestion().getQuestion());
-                dto.setAnswerDetail(answerDTO);
-
-                return dto;
-            }).toList();
-
-            dailyInspection.setDetailQuestionAnswers(questionAnswerDTOList);
 
             // Set Daily Inspection & Question Answer
             DetailInspectionResponseDTO responseDTO = new DetailInspectionResponseDTO();
@@ -257,6 +284,30 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
 
     @Transactional
     @Override
+    public ResponseEntity<?> editStatusAnswer(Long id, UpdateInspectionStatusDTO inspectionStatusDTO) {
+        InspectionAnswer inspectionAnswer = inspectionAnswerRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Inspection Answer Not Found " + id));
+
+        Status status = statusRepo.findById(inspectionStatusDTO.getStatusId())
+                .orElseThrow(() -> new EntityNotFoundException("Status Not Found " + inspectionStatusDTO.getStatusId()));
+
+        Users users = usersRepository.findById(inspectionStatusDTO.getLastUpdateId())
+                .orElseThrow(() -> new EntityNotFoundException("User Not Found " + inspectionStatusDTO.getLastUpdateId()));
+
+        inspectionAnswer.setStatus(status);
+        inspectionAnswer.setLastUpdate(users);
+
+        inspectionAnswerRepository.save(inspectionAnswer);
+        return responseHelperService.saveEntityWithMessage("Daily Inspection Update Status Successfully");
+    }
+
+    @Override
+    public ResponseEntity<?> deleteDailyInspection(Long id) {
+        return null;
+    }
+
+    @Transactional
+    @Override
     public ResponseEntity<Map<String, Object>> addDetailDailyInspection(DetailInspectionDTO detailInspectionDTO) {
         DailyInspection dailyInspection = dailyInspectionRepo.findById(detailInspectionDTO.getDailyInspectionId())
                 .orElseThrow(() -> new EntityNotFoundException("Daily Inspection Not Found " + detailInspectionDTO.getDailyInspectionId()));
@@ -281,7 +332,7 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
         InspectionAnswer inspectionAnswer = answerInspectionRepo.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Inspection Answer Not Found " + id));
 
-        String imageUrl = "/home/root/ReportPic/dailyInspection/" + dailyInspectionId + "/" + inspectionAnswer.getGambar();
+        String imageUrl = folderImageApp.getFolderPath() + "ReportPic/dailyInspection/" + dailyInspectionId + "/" + inspectionAnswer.getGambar();
 
         return responseHelperService.fetchImageReport(imageUrl, "Daily Inspection Image Not Found");
     }
@@ -290,32 +341,42 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
     public ResponseEntity<?> exportToExcel() {
         List<DailyInspection> data = dailyInspectionRepo.findAll();
 
-        try (Workbook workbook = new XSSFWorkbook()) {
+        try {
+            Workbook workbook = new XSSFWorkbook();
             Sheet sheet = workbook.createSheet("Daily Inspection");
 
+            String[] headers = {
+                    "No", "Tanggal", "Nama Pengawas", "Department",
+                    "Shift Kerja", "Area Kerja", "Area Kerja Spesifik" , "Status", "Alasan"
+            };
+
+            // Create header row dynamically
             Row headerRow = sheet.createRow(0);
-            headerRow.createCell(0).setCellValue("No");
-            headerRow.createCell(1).setCellValue("Tanggal");
-            headerRow.createCell(2).setCellValue("Nama Pengawas");
-            headerRow.createCell(3).setCellValue("Department");
-            headerRow.createCell(4).setCellValue("Shift Kerja");
-            headerRow.createCell(5).setCellValue("Area Kerja");
-            headerRow.createCell(6).setCellValue("Status");
-            headerRow.createCell(7).setCellValue("Alasan");
+            for (int i = 0; i < headers.length; i++) {
+                headerRow.createCell(i).setCellValue(headers[i]);
+            }
 
             int rowNum = 1;
             for (DailyInspection inspection : data) {
                 Row row = sheet.createRow(rowNum);
-                row.createCell(0).setCellValue(rowNum);
-                if (inspection.getTanggalInspeksi() != null){
-                    row.createCell(1).setCellValue(ExcelDateConverter.formatDate(inspection.getTanggalInspeksi()));
+
+                Object[] values = {
+                        rowNum,
+                        inspection.getTanggalInspeksi() != null ?
+                                ExcelDateConverter.formatDate(inspection.getTanggalInspeksi()) : "-",
+                        inspection.getNamaPengawas(),
+                        inspection.getDepartmentPengawas().getNamaDepartment(),
+                        inspection.getShiftKerja().getNamaShift(),
+                        inspection.getAreaKerja().getNamaAreaKerja(),
+                        inspection.getKeteranganAreaKerja(),
+                        inspection.getStatus().getNamaStatus(),
+                        inspection.getAlasan() != null ? inspection.getAlasan() : "N/A"
+                };
+
+                for (int i = 0; i < values.length; i++) {
+                    row.createCell(i).setCellValue(values[i].toString());
                 }
-                row.createCell(2).setCellValue(inspection.getNamaPengawas());
-                row.createCell(3).setCellValue(inspection.getDepartmentPengawas().getNamaDepartment());
-                row.createCell(4).setCellValue(inspection.getShiftKerja().getNamaShift());
-                row.createCell(5).setCellValue(inspection.getAreaKerja().getNamaAreaKerja());
-                row.createCell(6).setCellValue(inspection.getStatus().getNamaStatus());
-                row.createCell(7).setCellValue(inspection.getAlasan() != null ? inspection.getAlasan() : "N/A");
+
                 rowNum++;
             }
 
@@ -323,20 +384,26 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
             String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
             String filename = "daily_inspection_" + timestamp + ".xlsx";
 
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            workbook.write(outputStream);
-            ByteArrayInputStream inputStream = new ByteArrayInputStream(outputStream.toByteArray());
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.add("Content-Disposition", "attachment; filename=" + filename);
-
-            return ResponseEntity.ok()
-                    .headers(headers)
-                    .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
-                    .body(new InputStreamResource(inputStream));
+            return getResponseEntity(workbook, filename);
         } catch (IOException e) {
             return responseHelperService.handleException(e);
         }
+    }
+
+    @NotNull
+    static ResponseEntity<?> getResponseEntity(Workbook workbook, String filename) throws IOException {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        workbook.write(outputStream);
+        workbook.close();
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(outputStream.toByteArray());
+
+        HttpHeaders header = new HttpHeaders();
+        header.add("Content-Disposition", "attachment; filename=" + filename);
+
+        return ResponseEntity.ok()
+                .headers(header)
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(new InputStreamResource(inputStream));
     }
 
 }

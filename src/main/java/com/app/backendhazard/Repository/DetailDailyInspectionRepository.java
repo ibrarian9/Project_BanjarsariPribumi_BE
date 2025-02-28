@@ -1,6 +1,7 @@
 package com.app.backendhazard.Repository;
 
 import com.app.backendhazard.Models.DetailDailyInspection;
+import com.app.backendhazard.Models.InspectionAnswer;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -19,4 +20,7 @@ public interface DetailDailyInspectionRepository extends JpaRepository<DetailDai
             "LOWER(iq.question) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
             "LOWER(ia.catatan) LIKE LOWER(CONCAT('%', :search, '%'))")
     List<DetailDailyInspection> searchInspections(@Param("search") String search);
+
+    @Query("SELECT i from InspectionAnswer i WHERE i.id = :id")
+    InspectionAnswer findInspectionAnswerById(Long id);
 }

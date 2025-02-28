@@ -13,4 +13,5 @@ public interface UsersService {
     ResponseEntity<?> login(Authentication authentication);
     ResponseEntity<Map<String, Object>> getDetailUser(Long id);
     ResponseEntity<Map<String, Object>> registerUser(RegisterDTO registerDTO);
+    ResponseEntity<Map<String, Object>> pencapaianSAP(Long id);
 }

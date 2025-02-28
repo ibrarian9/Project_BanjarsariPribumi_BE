@@ -1,15 +1,13 @@
 package com.app.backendhazard.Service;
 
+import com.app.backendhazard.DTO.PencapaianSapDTO;
 import com.app.backendhazard.DTO.RegisterDTO;
 import com.app.backendhazard.DTO.UpdateUserDTO;
 import com.app.backendhazard.Models.Nik;
 import com.app.backendhazard.Models.Roles;
 import com.app.backendhazard.Models.StatusKaryawan;
 import com.app.backendhazard.Models.Users;
-import com.app.backendhazard.Repository.NikRepository;
-import com.app.backendhazard.Repository.RoleRepository;
-import com.app.backendhazard.Repository.StatusKaryawanRepository;
-import com.app.backendhazard.Repository.UsersRepository;
+import com.app.backendhazard.Repository.*;
 import com.app.backendhazard.Response.LoginResponse;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.AllArgsConstructor;
@@ -37,6 +35,8 @@ public class UsersServiceImpl implements UsersService {
     private final PasswordEncoder passwordEncoder;
     private final ResponseHelperService responseHelperService;
     private final NikRepository nikRepository;
+    private final HazardStatusHistoryRepository hazardStatusHistoryRepo;
+    private final DailyInspectionRepository dailyInspectionRepository;
 
     @Transactional
     @Override
@@ -125,6 +125,23 @@ public class UsersServiceImpl implements UsersService {
         return ResponseEntity.ok(response);
     }
 
+    @Override
+    public ResponseEntity<Map<String, Object>> pencapaianSAP(Long id) {
+        Long totalReport = hazardStatusHistoryRepo.countByUserId(id);
+        Long totalDailyInspection = dailyInspectionRepository.countByUserId(id);
+
+        PencapaianSapDTO pencapaianSapDTO = new PencapaianSapDTO();
+        pencapaianSapDTO.setTotalHazard(totalReport);
+        pencapaianSapDTO.setTotalInspection(totalDailyInspection);
+        pencapaianSapDTO.setTotalSafetyTalk(0L);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("httpStatus", HttpStatus.OK.value());
+        response.put("data", pencapaianSapDTO);
+        response.put("message", "Data Pencapaian SAP Berhasil");
+        return ResponseEntity.ok(response);
+    }
+
     private static @NotNull LoginResponse getLoginResponse(String jwt) {
         UserDetailsImpl userDetails = (UserDetailsImpl) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         // Set Login Response
@@ -135,6 +152,7 @@ public class UsersServiceImpl implements UsersService {
         loginResponse.setNik(userDetails.getUser().getNik());
         loginResponse.setEmail(userDetails.getUser().getEmail());
         loginResponse.setRole(userDetails.getUser().getRole().getNamaRole());
+        loginResponse.setPosisi(userDetails.getUser().getStatusKaryawan().getNamaStatus());
         return loginResponse;
     }
 

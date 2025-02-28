@@ -8,4 +8,5 @@ import java.util.List;
 public class InspectionRequestDTO {
     private DailyInspectionDTO dailyInspectionDTO;
     private List<AnswerDTO> answerDTOList;
+    private List<Integer> imageIndicates;
 }

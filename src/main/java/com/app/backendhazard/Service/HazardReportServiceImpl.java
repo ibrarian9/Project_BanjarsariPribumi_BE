@@ -3,6 +3,7 @@ package com.app.backendhazard.Service;
 import com.app.backendhazard.DTO.*;
 import com.app.backendhazard.Handler.ExcelDateConverter;
 import com.app.backendhazard.Handler.FileUploadUtil;
+import com.app.backendhazard.Handler.FolderImageApp;
 import com.app.backendhazard.Models.*;
 import com.app.backendhazard.Repository.*;
 import com.app.backendhazard.Response.ErrorResponse;
@@ -14,18 +15,13 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.apache.tomcat.util.http.fileupload.FileUtils;
-import org.springframework.core.io.InputStreamResource;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -33,6 +29,8 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+
+import static com.app.backendhazard.Service.DailyInspectionServiceImpl.getResponseEntity;
 
 @Service
 @AllArgsConstructor
@@ -44,6 +42,8 @@ public class HazardReportServiceImpl implements HazardReportService {
     private final HazardStatusHistoryRepository hazardStatusHistoryRepo;
     private final StatusRepository statusRepo;
     private final ResponseHelperService responseHelperService;
+    private final FolderImageApp folderImageApp;
+    private final UsersRepository usersRepository;
 
     @Transactional
     @Override
@@ -67,6 +67,9 @@ public class HazardReportServiceImpl implements HazardReportService {
         Department departmentPerbaikan = departmentRepo.findById(hazardReport.getDepartmentPerbaikanId())
                 .orElseThrow(() -> new EntityNotFoundException("Department Perbaikan Not Found " + hazardReport.getDepartmentPerbaikanId()));
 
+        Users users = usersRepository.findById(hazardReport.getUserId())
+                .orElseThrow(() -> new EntityNotFoundException("Users Not Found " + hazardReport.getUserId()));
+
         newReport.setKategoriTemuan(kategoriTemuan);
         newReport.setDepartmentPelapor(departmentPelapor);
         newReport.setDepartmentPerbaikan(departmentPerbaikan);
@@ -84,7 +87,7 @@ public class HazardReportServiceImpl implements HazardReportService {
 
         // Save the image file
         try {
-            FileUploadUtil.saveFile(uploadDir, nameGambar, gambar);
+            FileUploadUtil.saveFile(folderImageApp.getFolderPath(), uploadDir, nameGambar, gambar);
         } catch (Exception e){
             return responseHelperService.handleException(e);
         }
@@ -93,9 +96,10 @@ public class HazardReportServiceImpl implements HazardReportService {
         HazardStatusHistory history = new HazardStatusHistory();
         Status statusLaporan = statusRepo.findById(hazardReport.getStatusLaporanId())
                 .orElseThrow(() -> new EntityNotFoundException("Status Laporan Not Found " + hazardReport.getStatusLaporanId()));
+        history.setUser(users);
         history.setReport(hazardReportWithId);
         history.setStatus(statusLaporan);
-        history.setUpdateBy("Admin");
+        history.setUpdateBy(users.getUsername());
         history.setUpdateDate(ZonedDateTime.now(ZoneId.of("Asia/Jakarta")).toLocalDateTime());
 
         hazardStatusHistoryRepo.save(history);
@@ -107,7 +111,7 @@ public class HazardReportServiceImpl implements HazardReportService {
         HazardReport hazardReport = hazardStatusHistoryRepo.findByReportId(id)
                 .orElseThrow(() -> new EntityNotFoundException("Hazard Report Not Found " + id)).getReport();
 
-        String imageUrl = "/home/root/ReportPic/hazardReport/" + hazardReport.getId() + "/" + hazardReport.getGambar();
+        String imageUrl = folderImageApp.getFolderPath() + "ReportPic/hazardReport/" + hazardReport.getId() + "/" + hazardReport.getGambar();
 
         return responseHelperService.fetchImageReport(imageUrl, "Hazard Report Image Not Found");
     }
@@ -264,7 +268,8 @@ public class HazardReportServiceImpl implements HazardReportService {
 
             String[] headers = {
                     "No", "Tanggal", "Judul Laporan", "Nama Pelapor", "Department Pelapor",
-                    "Perusahaan Pelapor", "Deskripsi", "Lokasi", "Kategori Laporan", "Tindakan Perbaikan",
+                    "Perusahaan Pelapor", "Deskripsi", "Lokasi", "Kategori Laporan",
+                    "Nama Karyawan Perbaikan", "Tindakan Perbaikan",
                     "Department Perbaikan", "Perusahaan Perbaikan", "Status"
             };
 
@@ -287,6 +292,8 @@ public class HazardReportServiceImpl implements HazardReportService {
                         report.getReport().getDeskripsi(),
                         report.getReport().getLokasi(),
                         report.getReport().getKategoriTemuan().getKategoriTemuan(),
+                        report.getReport().getPenyelesaian() != null ?
+                                report.getReport().getPenyelesaian().getNamaPenyelesaian() : "-",
                         report.getReport().getTindakan(),
                         report.getReport().getDepartmentPerbaikan().getNamaDepartment(),
                         report.getReport().getDepartmentPerbaikan().getCompany().getNamaCompany(),
@@ -304,18 +311,7 @@ public class HazardReportServiceImpl implements HazardReportService {
             String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
             String filename = "hazard_report_" + timestamp + ".xlsx";
 
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            workbook.write(outputStream);
-            workbook.close();
-            ByteArrayInputStream inputStream = new ByteArrayInputStream(outputStream.toByteArray());
-
-            HttpHeaders header = new HttpHeaders();
-            header.add("Content-Disposition", "attachment; filename=" + filename);
-
-            return ResponseEntity.ok()
-                    .headers(header)
-                    .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
-                    .body(new InputStreamResource(inputStream));
+            return getResponseEntity(workbook, filename);
         } catch (IOException e){
             return responseHelperService.handleException(e);
         }

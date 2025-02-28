@@ -13,6 +13,9 @@ public class HazardStatusHistory {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     @ManyToOne
+    @JoinColumn(name = "user_id", referencedColumnName = "id")
+    private Users user;
+    @ManyToOne
     @JoinColumn(name = "report_id", nullable = false, referencedColumnName = "id", unique = true)
     private HazardReport report;
     @ManyToOne

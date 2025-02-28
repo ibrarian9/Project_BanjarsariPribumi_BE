@@ -25,4 +25,8 @@ public interface HazardStatusHistoryRepository extends JpaRepository<HazardStatu
     List<HazardStatusHistory> filterByDepartmentAndStatus(
             @Param("department") String department,
             @Param("status") String status);
+
+    @Query("SELECT COUNT(h) from HazardStatusHistory h WHERE h.user.id = :userId")
+    Long countByUserId(@Param("userId") Long userId);
+
 }

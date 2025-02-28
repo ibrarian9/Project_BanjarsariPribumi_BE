@@ -2,6 +2,7 @@ package com.app.backendhazard.Service;
 
 import com.app.backendhazard.DTO.PenyelesaianDTO;
 import com.app.backendhazard.Handler.FileUploadUtil;
+import com.app.backendhazard.Handler.FolderImageApp;
 import com.app.backendhazard.Models.*;
 import com.app.backendhazard.Repository.*;
 import jakarta.persistence.EntityNotFoundException;
@@ -29,6 +30,7 @@ public class PencapaianServiceImpl implements PencapaianService {
     private final HazardStatusHistoryRepository hazardStatusHistoryRepo;
     private final ResponseHelperService responseHelperService;
     private final StatusRepository statusRepository;
+    private final FolderImageApp folderImageApp;
 
     @Override
     public ResponseEntity<Map<String, Object>> addPencapaian(Pencapaian pencapaian) {
@@ -48,7 +50,7 @@ public class PencapaianServiceImpl implements PencapaianService {
         HazardStatusHistory hazardStatusHistory = hazardStatusHistoryRepo.findByReportId(id)
                 .orElseThrow(() -> new EntityNotFoundException("Hazard Report Not Found"));
 
-        Status status = statusRepository.findById(3L)
+        Status status = statusRepository.findById(2L)
                 .orElseThrow(() -> new EntityNotFoundException("Status Not Found"));
 
         // Create or retrieve existing Penyelesaian
@@ -81,7 +83,7 @@ public class PencapaianServiceImpl implements PencapaianService {
                     }
                 }
                 // Save the new image
-                FileUploadUtil.saveFile(uploadDir, namaGambar, gambar);
+                FileUploadUtil.saveFile(folderImageApp.getFolderPath(), uploadDir, namaGambar, gambar);
 
                 // Save the update penyelesaian Entity with the new Image name
                 penyelesaianEntity = penyelesaianRepo.save(penyelesaianEntity);
@@ -111,7 +113,7 @@ public class PencapaianServiceImpl implements PencapaianService {
         Penyelesaian penyelesaian = penyelesaianRepo.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Penyelesaian Not Found " + id));
 
-        String imageUrl = "/home/root/ReportPic/resolution/" + penyelesaian.getId() + "/" + penyelesaian.getGambar();
+        String imageUrl = folderImageApp.getFolderPath() + "ReportPic/resolution/" + penyelesaian.getId() + "/" + penyelesaian.getGambar();
 
         return responseHelperService.fetchImageReport(imageUrl, "Resolution Image Not Found");
     }
