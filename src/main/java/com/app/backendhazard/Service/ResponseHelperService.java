@@ -1,6 +1,7 @@
 package com.app.backendhazard.Service;
 
-import com.app.backendhazard.DTO.DetailInspectionResponseDTO;
+import com.app.backendhazard.Models.DailyInspection;
+import com.app.backendhazard.Models.Status;
 import com.app.backendhazard.Response.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.core.io.FileSystemResource;
@@ -11,6 +12,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StreamUtils;
+import org.springframework.util.StringUtils;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.HashMap;
 import java.util.List;
@@ -23,13 +26,23 @@ public class ResponseHelperService {
     public <T> ResponseEntity<Map<String, Object>> getAllData(List<T> list) {
         Map<String, Object> response = new HashMap<>();
         response.put("httpStatus", HttpStatus.OK.value());
+        response.put("totalRecords", list.size());
         response.put("data", list);
         return ResponseEntity.ok(response);
     }
 
-    public ResponseEntity<Map<String, Object>> getAllDataDTO(DetailInspectionResponseDTO list) {
+    public ResponseEntity<Map<String, Object>> getAllDataDTO(DailyInspection list) {
         Map<String, Object> response = new HashMap<>();
         response.put("httpStatus", HttpStatus.OK.value());
+        response.put("data", list);
+        return ResponseEntity.ok(response);
+    }
+
+    public <T> ResponseEntity<Map<String, Object>> getAllDataWithPage(List<T> list, Integer totalRecord, Integer totalPage) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("httpStatus", HttpStatus.OK.value());
+        response.put("totalRecords", totalRecord);
+        response.put("totalPages", totalPage);
         response.put("data", list);
         return ResponseEntity.ok(response);
     }
@@ -54,6 +67,14 @@ public class ResponseHelperService {
         response.put("httpStatus", HttpStatus.CREATED.value());
         response.put("message", message);
         return ResponseEntity.ok(response);
+    }
+
+    public String validateReason(Status status, String alasan) {
+        int REJECT_STATUS = 3;
+        if (status.getId() != null && status.getId().equals(REJECT_STATUS) && !StringUtils.hasText(alasan)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Reason is required when status is Rejected");
+        }
+        return alasan;
     }
 
     public String buildLinkImage(HttpServletRequest request, Long id, String apiUrl) {

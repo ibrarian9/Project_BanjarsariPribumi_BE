@@ -5,7 +5,6 @@ import com.app.backendhazard.Handler.ExcelDateConverter;
 import com.app.backendhazard.Handler.FolderImageApp;
 import com.app.backendhazard.Models.*;
 import com.app.backendhazard.Repository.*;
-import com.app.backendhazard.Response.ErrorResponse;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.AllArgsConstructor;
@@ -17,14 +16,16 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.InputStreamResource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.FileCopyUtils;
-import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.*;
@@ -34,7 +35,6 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 @AllArgsConstructor
@@ -65,8 +65,6 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
             InspectionRequestDTO requestDTO,
             List<MultipartFile> gambarFiles
     ) {
-        // Check id
-        log.debug("Received JSON: {}", requestDTO);
 
         Status statusLaporan = statusRepo.findById(requestDTO.getDailyInspectionDTO().getStatusLaporanId())
                 .orElseThrow(() -> new EntityNotFoundException("Status Not Found " + requestDTO.getDailyInspectionDTO().getStatusLaporanId()));
@@ -99,8 +97,8 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
         List<DetailDailyInspection> detailToSave = new ArrayList<>();
 
         List<Integer> imageIndices = requestDTO.getImageIndicates() != null ?
-                                    requestDTO.getImageIndicates() :
-                                    new ArrayList<>();
+                requestDTO.getImageIndicates() :
+                new ArrayList<>();
 
         Map<Integer, MultipartFile> imageMap = new HashMap<>();
         for (int i = 0; i < gambarFiles.size() && i < imageIndices.size(); i++) {
@@ -155,20 +153,6 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
         return responseHelperService.saveEntityWithMessage("Answer added successfully");
     }
 
-    private String saveImageToFileSystem(MultipartFile imageFile, Long id) throws IOException {
-        String uploadDir = folderImageApp.getFolderPath() + "ReportPic/dailyInspection/" + id + "/";
-        Files.createDirectories(Paths.get(uploadDir)); // Ensure directory exists
-        // Make file
-        String fileName = UUID.randomUUID() + ".jpeg";
-        File file = new File(uploadDir, fileName);
-        // Write the file directly with FileCopyUtils
-        try (InputStream in = imageFile.getInputStream(); OutputStream out = new FileOutputStream(file)) {
-            FileCopyUtils.copy(in, out);
-        }
-        // Return the path to save in the database
-        return fileName;
-    }
-
     @Override
     public ResponseEntity<Map<String, Object>> getDetailInspectionAnswer(Long id, HttpServletRequest request) {
 
@@ -183,8 +167,6 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
             dto.setQuestionText(detail.getInspectionQuestion().getQuestion());
 
             Users lastUpdate = null;
-
-
             // Show Answer
             DetailAnswerDTO answerDTO = new DetailAnswerDTO();
             answerDTO.setId(detail.getInspectionAnswer().getId());
@@ -195,9 +177,9 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
                 lastUpdate = usersRepository.findById(detail.getInspectionAnswer().getLastUpdate().getId()).orElse(null);
             }
             if (lastUpdate != null) {
-                answerDTO.setLastUpdate(lastUpdate);
+                answerDTO.setLastUpdate(lastUpdate.getUsername());
             }
-            if (detail.getInspectionAnswer().getGambar() != null){
+            if (detail.getInspectionAnswer().getGambar() != null) {
                 answerDTO.setImageLink(BuildLinkImage(request, id, detail.getInspectionAnswer().getId()));
             } else {
                 answerDTO.setImageLink(null);
@@ -209,45 +191,19 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
         // Set Answer Question to Daily Inspection
         dailyInspection.setDetailQuestionAnswers(questionAnswerDTOList);
 
-        // Wrap the modified Daily Inspection in the response DTO
-        DetailInspectionResponseDTO responseDTO = new DetailInspectionResponseDTO();
-        responseDTO.setDailyInspection(dailyInspection);
-
-        return responseHelperService.getAllDataDTO(responseDTO);
-    }
-
-    private String BuildLinkImage(HttpServletRequest request, Long dailyInspectionId, Long id) {
-        String baseUrl = request.getRequestURL().toString().replace(request.getRequestURI(), "");
-        return baseUrl + "/api/imageDailyInspection/" + dailyInspectionId + "/" + id;
+        return responseHelperService.getAllDataDTO(dailyInspection);
     }
 
     @Override
-    public ResponseEntity<Map<String, Object>> getAllDailyInspection(String search) {
+    public ResponseEntity<Map<String, Object>> getAllDailyInspection(String search, Integer size, Integer page) {
+        Pageable pageable = PageRequest.of(page != null ? page : 0, size, Sort.by("id").descending());
+
         // Fetch All Detail Daily Inspection
-        List<DetailDailyInspection> dailyInspections = (search == null || search.isEmpty())
-                ? detailDailyInspectionRepo.findAll() : detailDailyInspectionRepo.searchInspections(search);
+        Page<DailyInspection> dailyInspectionsPage = detailDailyInspectionRepo.searchInspections(search, pageable);
 
-        // Group by DailyInspection ID
-        Map<Long, List<DetailDailyInspection>> groupByDailyInspection = dailyInspections.stream()
-                .collect(Collectors.groupingBy(d -> d.getDailyInspection().getId()));
+        List<DailyInspection> dailyInspections = dailyInspectionsPage.getContent();
 
-        // Map each Detail Daily Inspection to a structured response with its related question
-        List<DetailInspectionResponseDTO> inspectionResponseDTO = new ArrayList<>(groupByDailyInspection.values().stream().map(detailData -> {
-
-            DailyInspection dailyInspection = detailData.get(0).getDailyInspection();
-
-            // Set Daily Inspection & Question Answer
-            DetailInspectionResponseDTO responseDTO = new DetailInspectionResponseDTO();
-            responseDTO.setDailyInspection(dailyInspection);
-
-            return responseDTO;
-        }).toList());
-
-        inspectionResponseDTO.sort(Comparator.comparing(
-                res -> res.getDailyInspection().getId(), Comparator.reverseOrder()
-        ));
-
-        return responseHelperService.getAllData(inspectionResponseDTO);
+        return responseHelperService.getAllDataWithPage(dailyInspections, dailyInspections.size(), dailyInspectionsPage.getTotalPages());
     }
 
     @Transactional
@@ -259,22 +215,12 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
 
         // Find Status by id
         Status status = statusRepo.findById(dailyInspectionStatusDTO.getStatusId())
-                .orElseThrow(() -> new EntityNotFoundException("Status Not Found "+ dailyInspectionStatusDTO.getStatusId()));
+                .orElseThrow(() -> new EntityNotFoundException("Status Not Found " + dailyInspectionStatusDTO.getStatusId()));
 
         // Update status & reason in daily inspection
         dailyInspection.setStatus(status);
 
-        int reject = 3;
-        // Cek Status if Reject make the Reason required
-        if (status.getId() != null && status.getId().equals(reject)) {
-            if (!StringUtils.hasText(dailyInspectionStatusDTO.getAlasan())) {
-                ErrorResponse errorRes = new ErrorResponse(HttpStatus.BAD_REQUEST.value(), "Reason is required when status is Rejected");
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorRes);
-            }
-            dailyInspection.setAlasan(dailyInspectionStatusDTO.getAlasan());
-        } else {
-            dailyInspection.setAlasan(dailyInspectionStatusDTO.getAlasan());
-        }
+        dailyInspection.setAlasan(responseHelperService.validateReason(status, dailyInspectionStatusDTO.getAlasan()));
 
         // save the updated Daily Inspection back to database
         dailyInspectionRepo.save(dailyInspection);
@@ -303,7 +249,32 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
 
     @Override
     public ResponseEntity<?> deleteDailyInspection(Long id) {
-        return null;
+        DailyInspection dailyInspection = dailyInspectionRepo.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Daily Inspection Not Found " + id));
+
+        List<DetailDailyInspection> details = detailDailyInspectionRepo.findByDailyInspectionId(id);
+
+        List<Long> answerIds = details.stream()
+                .map(detail -> detail.getInspectionAnswer().getId())
+                .toList();
+
+        if (!details.isEmpty()) {
+            detailDailyInspectionRepo.deleteAll(details);
+        }
+
+        for (Long answerId : answerIds) {
+            InspectionAnswer answer = answerInspectionRepo.findById(answerId).orElse(null);
+            if (answer != null) {
+                if (answer.getGambar() != null) {
+                    deleteImageFile(answer.getGambar(), id);
+                }
+                answerInspectionRepo.delete(answer);
+            }
+        }
+
+        dailyInspectionRepo.delete(dailyInspection);
+
+        return responseHelperService.saveEntityWithMessage("Daily Inspection Delete Successfully");
     }
 
     @Transactional
@@ -347,7 +318,7 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
 
             String[] headers = {
                     "No", "Tanggal", "Nama Pengawas", "Department",
-                    "Shift Kerja", "Area Kerja", "Area Kerja Spesifik" , "Status", "Alasan"
+                    "Shift Kerja", "Area Kerja", "Area Kerja Spesifik", "Status", "Alasan"
             };
 
             // Create header row dynamically
@@ -406,4 +377,35 @@ public class DailyInspectionServiceImpl implements DailyInspectionService {
                 .body(new InputStreamResource(inputStream));
     }
 
+    private String saveImageToFileSystem(MultipartFile imageFile, Long id) throws IOException {
+        String uploadDir = folderImageApp.getFolderPath() + "ReportPic/dailyInspection/" + id + "/";
+        Files.createDirectories(Paths.get(uploadDir)); // Ensure directory exists
+        // Make file
+        String fileName = UUID.randomUUID() + ".jpeg";
+        File file = new File(uploadDir, fileName);
+        // Write the file directly with FileCopyUtils
+        try (InputStream in = imageFile.getInputStream(); OutputStream out = new FileOutputStream(file)) {
+            FileCopyUtils.copy(in, out);
+        }
+        // Return the path to save in the database
+        return fileName;
+    }
+
+    private void deleteImageFile(String gambar, Long id) {
+        String imagePath = folderImageApp.getFolderPath() + "ReportPic/dailyInspection/" + id + "/" + gambar;
+        File file = new File(imagePath);
+
+        if (file.exists()) {
+            if (file.delete()) {
+                log.info("Image file deleted successfully: {}", imagePath);
+            } else {
+                log.error("Failed to delete image file: {}", imagePath);
+            }
+        }
+    }
+
+    private String BuildLinkImage(HttpServletRequest request, Long dailyInspectionId, Long id) {
+        String baseUrl = request.getRequestURL().toString().replace(request.getRequestURI(), "");
+        return baseUrl + "/api/imageDailyInspection/" + dailyInspectionId + "/" + id;
+    }
 }

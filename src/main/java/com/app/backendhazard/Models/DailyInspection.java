@@ -9,7 +9,11 @@ import java.util.List;
 
 @Entity
 @Data
-@Table(name = "daily_inspection")
+@Table(name = "daily_inspection",
+    indexes = {
+        @Index(name = "idx_daily_inspection_id", columnList = "id")
+    }
+)
 public class DailyInspection {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

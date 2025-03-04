@@ -5,7 +5,11 @@ import lombok.Data;
 
 @Entity
 @Data
-@Table(name = "detail_daily_inspection")
+@Table(name = "detail_daily_inspection",
+    indexes = {
+        @Index(name = "idx_detail_daily_inspection_di_id", columnList = "daily_inspection_id")
+    }
+)
 public class DetailDailyInspection {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

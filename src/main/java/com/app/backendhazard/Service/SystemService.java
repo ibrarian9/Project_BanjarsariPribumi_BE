@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import java.util.Map;
 
 public interface SystemService {
+    ResponseEntity<Map<String, Object>> getSystemVersion();
     ResponseEntity<Map<String, Object>> getAllUser();
     ResponseEntity<Map<String, Object>> getAllShift();
     ResponseEntity<Map<String, Object>> getAllStatus();

@@ -6,8 +6,8 @@ import com.app.backendhazard.Handler.FileUploadUtil;
 import com.app.backendhazard.Handler.FolderImageApp;
 import com.app.backendhazard.Models.*;
 import com.app.backendhazard.Repository.*;
-import com.app.backendhazard.Response.ErrorResponse;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.criteria.*;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.AllArgsConstructor;
 import org.apache.poi.ss.usermodel.Row;
@@ -15,20 +15,28 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.apache.tomcat.util.http.fileupload.FileUtils;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 import static com.app.backendhazard.Service.DailyInspectionServiceImpl.getResponseEntity;
 
@@ -88,7 +96,7 @@ public class HazardReportServiceImpl implements HazardReportService {
         // Save the image file
         try {
             FileUploadUtil.saveFile(folderImageApp.getFolderPath(), uploadDir, nameGambar, gambar);
-        } catch (Exception e){
+        } catch (Exception e) {
             return responseHelperService.handleException(e);
         }
 
@@ -125,7 +133,7 @@ public class HazardReportServiceImpl implements HazardReportService {
         // Penyelesaian DTO
         ResponsePenyelesaianDTO penyelesaianDTO = null;
         Penyelesaian penyelesaian = hazardReport.getReport().getPenyelesaian();
-        if (penyelesaian != null){
+        if (penyelesaian != null) {
             penyelesaianDTO = new ResponsePenyelesaianDTO();
             penyelesaianDTO.setNamaPenyelesaian(hazardReport.getReport().getPenyelesaian().getNamaPenyelesaian());
             penyelesaianDTO.setDepartment(hazardReport.getReport().getPenyelesaian().getDepartment());
@@ -164,15 +172,27 @@ public class HazardReportServiceImpl implements HazardReportService {
     }
 
     @Override
-    public ResponseEntity<Map<String, Object>> searchAllHistoryStatus(String search) {
-        List<HazardStatusHistory> data = hazardStatusHistoryRepo.searchHazardStatusHistory(search);
-        data.sort(Comparator.comparing(HazardStatusHistory::getId).reversed());
-        return responseHelperService.getAllData(data);
+    public ResponseEntity<Map<String, Object>> searchAllHistoryStatus(String search, Integer limit, Integer page) {
+        Pageable pageable = PageRequest.of(page != null ? page : 0, limit, Sort.by("id").descending());
+
+        Page<HazardStatusHistory> data = hazardStatusHistoryRepo.searchHazardStatusHistory(search, pageable);
+
+        List<HazardStatusHistory> dataList = data.getContent();
+
+        return responseHelperService.getAllDataWithPage(dataList, dataList.size(), data.getTotalPages());
     }
 
     @Override
     public ResponseEntity<Map<String, Object>> filterAllHistoryStatus(String dept, String status) {
         return responseHelperService.getAllData(hazardStatusHistoryRepo.filterByDepartmentAndStatus(dept, status));
+    }
+
+    @Override
+    public ResponseEntity<Map<String, Object>> getFilterReport(Long departmentPerbaikanId, LocalDate startDate, LocalDate endDate, Long statusId, Integer page, Integer size) {
+        Specification<HazardStatusHistory> spec = filterReport(departmentPerbaikanId, startDate, endDate, statusId);
+        Pageable pageable = PageRequest.of(page, size);
+        Page<HazardStatusHistory> historyList = hazardStatusHistoryRepo.findAll(spec, pageable);
+        return responseHelperService.getAllData(historyList.getContent());
     }
 
     @Transactional
@@ -196,20 +216,8 @@ public class HazardReportServiceImpl implements HazardReportService {
             return responseHelperService.handleExceptionByMessage("Report ID and Status ID are required!");
         }
 
-        int reject = 3;
-        // Cek when status reject, alasan required
-        if (status.getId() != null && status.getId().equals(reject)) {
-            if (!StringUtils.hasText(hazardStatusDTO.getAlasan())) {
-                ErrorResponse errorRes = new ErrorResponse(HttpStatus.BAD_REQUEST.value(), "Reason is required when status is Rejected");
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorRes);
-            }
-            history.setAlasan(hazardStatusDTO.getAlasan());
-        } else {
-            history.setAlasan(hazardStatusDTO.getAlasan());
-        }
-
+        history.setAlasan(responseHelperService.validateReason(status, hazardStatusDTO.getAlasan()));
         history.setUpdateBy(hazardStatusDTO.getUpdateBy());
-        history.setUpdateDate(LocalDateTime.now().atZone(ZoneId.of("Asia/Jakarta")).toLocalDateTime());
 
         // Update Status Hazard Report
         hazardStatusHistoryRepo.save(history);
@@ -228,7 +236,7 @@ public class HazardReportServiceImpl implements HazardReportService {
 
         // Define tje file paths
         String fileName = hazardReport.getGambar();
-        String filePath =  "upload/hazardReport/" + hazardReport.getId();
+        String filePath = "upload/hazardReport/" + hazardReport.getId();
         File fileToDelete = new File(filePath, fileName);
 
         // Delete the specific file if it exists
@@ -312,8 +320,36 @@ public class HazardReportServiceImpl implements HazardReportService {
             String filename = "hazard_report_" + timestamp + ".xlsx";
 
             return getResponseEntity(workbook, filename);
-        } catch (IOException e){
+        } catch (IOException e) {
             return responseHelperService.handleException(e);
         }
+    }
+
+    private Specification<HazardStatusHistory> filterReport(
+            Long deptPerbaikanId, LocalDate startDate, LocalDate endDate, Long statusId
+    ) {
+        return (Root<HazardStatusHistory> root, CriteriaQuery<?> query, CriteriaBuilder cb) -> {
+            Predicate predicate = cb.conjunction();
+
+            Join<HazardStatusHistory, HazardReport> reportJoin = root.join("report");
+            Join<HazardStatusHistory, Status> statusJoin = root.join("status");
+
+            // Filter by Department Perbaikan
+            if (deptPerbaikanId != null) {
+                predicate = cb.and(predicate, cb.equal(reportJoin.get("departmentPerbaikan").get("id"), deptPerbaikanId));
+            }
+
+            // Filter by Date Range (Tanggal Kejadian)
+            if (startDate != null && endDate != null) {
+                predicate = cb.and(predicate, cb.between(reportJoin.get("tanggalKejadian"), startDate.atStartOfDay(), endDate.atTime(23, 59, 59)));
+            }
+
+            // Filter by Status
+            if (statusId != null) {
+                predicate = cb.and(predicate, cb.equal(statusJoin.get("id"), statusId));
+            }
+
+            return predicate;
+        };
     }
 }

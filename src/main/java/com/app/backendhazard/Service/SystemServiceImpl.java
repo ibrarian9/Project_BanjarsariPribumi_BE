@@ -19,6 +19,7 @@ public class SystemServiceImpl implements SystemService {
     private final KategoriTemuanRepository kategoriTemuanRepo;
     private final ResponseHelperService responseHelperService;
     private final StatusCompanyRepository statusCompanyRepo;
+    private final VersionAppRepository versionAppRepository;
 
     @Override
     public ResponseEntity<Map<String, Object>> getAllStatusKaryawan() {
@@ -33,6 +34,11 @@ public class SystemServiceImpl implements SystemService {
     @Override
     public ResponseEntity<Map<String, Object>> getAllStatus() {
         return responseHelperService.getAllData(statusRepo.findAll());
+    }
+
+    @Override
+    public ResponseEntity<Map<String, Object>> getSystemVersion() {
+        return responseHelperService.getDetailData(1L, versionAppRepository);
     }
 
     @Override

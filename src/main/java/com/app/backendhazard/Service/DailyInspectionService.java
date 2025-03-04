@@ -17,7 +17,7 @@ public interface DailyInspectionService {
     ResponseEntity<Map<String, Object>> getInspectionQuestion(Long areakerjaId);
     ResponseEntity<?> addInspectionAnswer(InspectionRequestDTO requestDTO, List<MultipartFile> gambarFiles);
     ResponseEntity<Map<String, Object>> getDetailInspectionAnswer(Long id, HttpServletRequest request);
-    ResponseEntity<Map<String, Object>> getAllDailyInspection(String search);
+    ResponseEntity<Map<String, Object>> getAllDailyInspection(String search, Integer size, Integer page);
     ResponseEntity<?> editStatusDailyInspection(Long id, DailyInspectionStatusDTO dailyInspectionStatusDTO);
     ResponseEntity<?> editStatusAnswer(Long id, UpdateInspectionStatusDTO inspectionStatusDTO);
     ResponseEntity<?> deleteDailyInspection(Long id);

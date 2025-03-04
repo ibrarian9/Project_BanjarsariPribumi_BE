@@ -8,11 +8,16 @@ import lombok.NoArgsConstructor;
 @Data
 @Entity
 @NoArgsConstructor
-@Table(name = "users", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"username"}),
-        @UniqueConstraint(columnNames = {"email"}),
-        @UniqueConstraint(columnNames = {"nik"})
-})
+@Table(name = "users",
+        uniqueConstraints = {
+                @UniqueConstraint(columnNames = {"username"}),
+                @UniqueConstraint(columnNames = {"email"}),
+                @UniqueConstraint(columnNames = {"nik"})
+        },
+        indexes = {
+                @Index(name = "idx_users_id", columnList = "id")
+        })
+
 public class Users {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
